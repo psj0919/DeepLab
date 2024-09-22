@@ -1,6 +1,5 @@
-
 from Config.config import get_config_dict
-from Core.engine_fcn import Trainer
+from Core.engine_deeplab import Trainer
 
 
 

@@ -33,13 +33,13 @@ def get_test_config_dict():
     )
     args = dict(
         gpu_id='1',
-        network_name="fcn8",
+        network_name="v3",
         num_workers=6
     )
     model = dict(
-        resume='/storage/sjpark/vehicle_data/checkpoints/FCN8/256/fcn_epochs:200_optimizer:adam_lr:0.0001_modelfcn8.pth',  # weight_file
+        resume=' ',  # weight_file
         mode='test',
-        save_dir='/storage/sjpark/vehicle_data/runs/FCN/test/fcn8/256/test',   # runs_file
+        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/test/256',   # runs_file
     )
     config = dict(
         args=args,

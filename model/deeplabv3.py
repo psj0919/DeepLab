@@ -11,6 +11,26 @@ model_urls = {
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
 
+class Conv2d(nn.Conv2d):
+
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
+                 padding=0, dilation=1, groups=1, bias=True):
+        super(Conv2d, self).__init__(in_channels, out_channels, kernel_size, stride,
+                 padding, dilation, groups, bias)
+
+    def forward(self, x):
+        # return super(Conv2d, self).forward(x)
+        weight = self.weight
+        weight_mean = weight.mean(dim=1, keepdim=True).mean(dim=2,
+                                  keepdim=True).mean(dim=3, keepdim=True)
+        weight = weight - weight_mean
+        std = weight.view(weight.size(0), -1).std(dim=1).view(-1, 1, 1, 1) + 1e-5
+        weight = weight / std.expand_as(weight)
+        return F.conv2d(x, weight, self.bias, self.stride,
+                        self.padding, self.dilation, self.groups)
+
+
+
 class ASPP(nn.Module):
     def __init__(self, C, depth, num_classes, conv = Conv2d, norm=nn.BatchNorm2d, momentum=0.0003, mult=1):
         super(ASPP, self).__init__()
@@ -20,17 +40,47 @@ class ASPP(nn.Module):
 
         self.global_pooling = nn.AdaptiveAvgPool2d(1)
         self.relu = nn.ReLU(inplace=True)
-        self.aspp1 = conv(C, depth, kernel_size=1, stride=1, bias=True)
-        self.aspp2 = conv(C, depth, kernel_size=1, stride=1, dilation=int(6*mult), padding=int(6*mult), bias=True)
-        self.aspp3 = conv(C, depth, kernel_size=1, stride=1, dilation=int(6 * mult), padding=int(6 * mult), bias=True)
-        self.aspp4 = conv(C, depth, kernel_size=1, stride=1, dilation=int(6 * mult), padding=int(6 * mult), bias=True)
+        self.aspp1 = conv(C, depth, kernel_size=1, stride=1, bias=False)
+        self.aspp2 = conv(C, depth, kernel_size=3, stride=1, dilation=int(6*mult), padding=int(6*mult), bias=False)
+        self.aspp3 = conv(C, depth, kernel_size=3, stride=1, dilation=int(12 * mult), padding=int(12 * mult), bias=False)
+        self.aspp4 = conv(C, depth, kernel_size=3, stride=1, dilation=int(18 * mult), padding=int(18 * mult), bias=False)
+        self.aspp5 = conv(C, depth, kernel_size=1, stride=1, bias=False)
 
+        self.aspp1_bn = norm(depth, momentum)
+        self.aspp2_bn = norm(depth, momentum)
+        self.aspp3_bn = norm(depth, momentum)
+        self.aspp4_bn = norm(depth, momentum)
+        self.aspp5_bn = norm(depth, momentum)
+        self.conv2 = conv(depth * 5, depth, kernel_size=1, stride=1, bias=False)
+        self.bn2 = norm(depth, momentum)
+        self.conv3 = nn.Conv2d(depth, num_classes, kernel_size=1, stride=1)
 
+    def forward(self, x):
+        x1 = self.aspp1(x)
+        x1 = self.aspp1_bn(x1)
+        x1 = self.relu(x1)
+        x2 = self.aspp2(x)
+        x2 = self.aspp2_bn(x2)
+        x2 = self.relu(x2)
+        x3 = self.aspp3(x)
+        x3 = self.aspp3_bn(x3)
+        x3 = self.relu(x3)
+        x4 = self.aspp4(x)
+        x4 = self.aspp4_bn(x4)
+        x4 = self.relu(x4)
+        x5 = self.global_pooling(x)
+        x5 = self.aspp5(x5)
+        x5 = self.aspp5_bn(x5)
+        x5 = self.relu(x5)
+        x5 = nn.Upsample((x.shape[2], x.shape[3]), mode='bilinear',
+                         align_corners=True)(x5)
+        x = torch.cat((x1, x2, x3, x4, x5), 1)
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.relu(x)
+        x = self.conv3(x)
 
-
-
-
-
+        return x
 
 
 class Bottleneck(nn.Module):

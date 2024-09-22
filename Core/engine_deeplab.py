@@ -4,8 +4,9 @@ import cv2
 import numpy as np
 import torch
 import torchvision
+from torchvision.models.segmentation import deeplabv3_resnet50
+
 from dataset.dataset import vehicledata
-from loss.loss import cross_entropy2d
 from tqdm import tqdm
 from copy import deepcopy
 from Core.functions import *
@@ -74,15 +75,10 @@ class Trainer():
 
 
     def setup_network(self):
-        if self.cfg['args']['network_name'] == "fcn8":
-            from model.FCN8s import FCN8s
-            return FCN8s(num_class=self.cfg['dataset']['num_class']).to(self.device)
-        elif self.cfg['args']['network_name'] == "fcn16":
-            from model.FCN16s import FCN16s
-            return FCN16s(num_class=self.cfg['dataset']['num_class']).to(self.device)
-        elif self.cfg['args']['network_name'] == "fcn32":
-            from model.FCN32s import FCN32s
-            return FCN32s(num_class=self.cfg['dataset']['num_class']).to(self.device)
+        from model.deeplabv3 import resnet50
+        model = resnet50(pretrained= False, num_classes=self.cfg['dataset']['num_class']).to(self.device)
+
+        return model
 
     def setup_optimizer(self):
         if self.cfg['solver']['optimizer'] == "sgd":

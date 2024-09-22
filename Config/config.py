@@ -34,7 +34,7 @@ def get_config_dict():
     args = dict(
         gpu_id='1',
         batch_size=8,
-        network_name="fcn8",
+        network_name="v3",
         epochs=200,
         num_workers=6
     )
@@ -49,10 +49,10 @@ def get_config_dict():
         print_freq=20,
     )
     model = dict(
-        resume='/storage/sjpark/vehicle_data/checkpoints/FCN8/256/fcn_epochs:200_optimizer:adam_lr:0.0001_modelfcn8.pth',  # weight_file
-        mode='test',
-        save_dir='/storage/sjpark/vehicle_data/runs/FCN/test/fcn8/256/test',
-        checkpoint='/storage/sjpark/vehicle_data/checkpoints/FCN8/512'  # checkpoint_path
+        resume=' ',  # weight_file
+        mode='train',
+        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256',
+        checkpoint='/storage/sjpark/vehicle_data/checkpoints/deeplab/256'  # checkpoint_path
     )
     config = dict(
         args=args,
