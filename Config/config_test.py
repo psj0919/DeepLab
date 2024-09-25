@@ -32,8 +32,7 @@ def get_test_config_dict():
         size= (256, 256)
     )
     args = dict(
-        gpu_id='1',
-        network_name="v3",
+        gpu_id='0',
         num_workers=6
     )
     model = dict(

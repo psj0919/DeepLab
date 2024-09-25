@@ -17,6 +17,8 @@ from distutils.version import LooseVersion
 import torchvision.transforms as transforms
 from torchvision.utils import make_grid
 import torch.nn.functional as F
+from model.deeplabv3plus import *
+from backbone.ResNet import build_backbone
 
 
 except_classes = ['motorcycle', 'bicycle', 'twowheeler', 'pedestrian', 'rider', 'sidewalk', 'crosswalk', 'speedbump', 'redlane', 'stoplane', 'trafficlight']
@@ -75,10 +77,8 @@ class Trainer():
 
 
     def setup_network(self):
-        from model.deeplabv3 import resnet50
-        model = resnet50(pretrained= False, num_classes=self.cfg['dataset']['num_class']).to(self.device)
-
-        return model
+        model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
+                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False).to(self.device)
 
     def setup_optimizer(self):
         if self.cfg['solver']['optimizer'] == "sgd":
