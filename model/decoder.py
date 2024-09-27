@@ -53,3 +53,4 @@ class Decoder(nn.Module):
 
 def build_decoder(num_classes, backbone, BatchNorm):
     return Decoder(num_classes, backbone, BatchNorm)
+

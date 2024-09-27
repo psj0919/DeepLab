@@ -33,9 +33,10 @@ def get_config_dict():
     )
     args = dict(
         gpu_id='0',
-        batch_size=1,
+        batch_size=2,
         epochs=200,
-        num_workers=6
+        num_workers=6,
+        network_name='DeepLabV3+'
     )
     solver = dict(
         backbone = 'resnet',

@@ -78,7 +78,9 @@ class Trainer():
 
     def setup_network(self):
         model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
-                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False).to(self.device)
+                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False)
+
+        return model
 
     def setup_optimizer(self):
         if self.cfg['solver']['optimizer'] == "sgd":
@@ -166,9 +168,9 @@ class Trainer():
                                                          leave=False):
                 self.global_step += 1
 
-                data = data.to(self.device)
-                target = target.to(self.device)
-                label = label.to(self.device)
+                data = data
+                target = target
+                label = label
                 label = label.type(torch.long)
                 #
                 out = self.model(data)
@@ -237,7 +239,7 @@ class Trainer():
             target_ = target.softmax(dim=1).argmax(dim=1).to('cpu')
             file, json_path = load_json_file(int(idx))
             # Iou
-            iou = make_bbox(file, json_path, target_, pred)
+            iou = make_bbox(json_path, target_, pred)
             # Crop image
             target_crop_image, pred_crop_image, org_cls = crop_image(target[0], logits[0], json_path)
 
