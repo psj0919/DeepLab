@@ -214,7 +214,13 @@ class Trainer():
         # for key, val in total_avr_recall.items():
         #     self.writer.add_scalar(tag='total_average_recall/{}'.format(key), scalar_value=sum(val) / len(val),
         #                            global_step=1)
-        import pickle
+        x = 0
+        for key ,val in total_avr_iou.items():
+            x += sum(val) / len(val)
+        x = x / len(total_avr_iou.keys())
+
+        self.writer.add_scalar(tag='miou', scalar_value=x, global_step=1)
+
 
         for key, val in total_avr_precision.items():
             for key2, val2 in val.items():

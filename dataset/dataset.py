@@ -1,18 +1,23 @@
 import os
+from idlelib.pyparse import trans
+
 import torch
 import cv2
 import numpy as np
 from PIL import Image
 import torch.nn.functional as F
+from torchvision import transforms
+from torchvision.transforms import InterpolationMode
 
 
 def resize_train(image, size):
-    return F.interpolate(image.unsqueeze(0), size, mode='bilinear', align_corners=True).squeeze(0)
+    resize = transforms.Resize(size)
+    return resize(image)
 
 
 def resize_label(image, size):
-    resize_img = F.interpolate(image.unsqueeze(0).unsqueeze(0), size=size, mode='nearest').squeeze()
-    return resize_img
+    resize = transforms.Resize(size, interpolation=InterpolationMode.NEAREST)
+    return resize(image)
 
 
 class vehicledata():
@@ -43,17 +48,22 @@ class vehicledata():
         # Training_image
         img = os.path.join(self.image_path, self.train_dir[index])
         img = Image.open(img)
-        img_orig = np.array(img, dtype=np.uint8)
+
 
         # Label
         label = os.path.join(self.annotation_path + self.ann_file[index])
         label = Image.open(label)
-        label_orig = np.array(label, dtype=np.uint8)
 
-        img, label = self.transform(img_orig, label_orig)
+
+        x = transforms.ToPILImage()
 
         img = resize_train(img, self.size)
         label = resize_label(label, self.size)
+
+        img = np.array(img, dtype=np.uint8)
+        label = np.array(label, dtype=np.uint8)
+        img, label = self.transform(img, label)
+
 
         # create one-hot encoding
         h, w = label.size()
@@ -61,21 +71,6 @@ class vehicledata():
         for c in range(self.n_class):
             target[c][label == c] = 1
 
-        # Debugging
-        # import matplotlib.pyplot as plt
-        # plt.subplot(2, 2, 1)
-        # plt.imshow(img_orig.astype(np.uint8))
-        # plt.title('RGB Image')
-        # plt.subplot(2, 2, 2)
-        # plt.title('Label Image')
-        # plt.imshow((np.expand_dims(label_orig * 255, axis=-1)).astype(np.uint8))
-        # plt.subplot(2, 2, 3)
-        # plt.imshow((img.permute(1, 2, 0).numpy()[:, :, ::-1] * 255).astype(np.uint8))
-        # plt.title('Resized RGB Image')
-        # plt.subplot(2, 2, 4)
-        # plt.title('Resized Label Image')
-        # plt.imshow((np.expand_dims(label.numpy() * 255, axis=-1)).astype(np.uint8))
-        # plt.show()
 
         return img, target, label, index
 
@@ -101,6 +96,6 @@ class vehicledata():
 if __name__ == "__main__":
     image_path = "/storage/sjpark/vehicle_data/Dataset/train_image/"
     annotation_path = "/storage/sjpark/vehicle_data/Dataset/ann_train/"
-    dataset_object = vehicledata(image_path, annotation_path)
+    dataset_object = vehicledata(image_path, annotation_path, 21, (256, 256))
 
-    img, label = dataset_object.__getitem__(0)
+    img, target, label,  index = dataset_object.__getitem__(0)

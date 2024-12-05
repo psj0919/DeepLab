@@ -204,29 +204,22 @@ class Trainer():
 
     def validation(self):
         self.model.eval()
-        total_ious = []
+        total_ious = {}
         total_accs = {}
+        avr_precision = {}
+        avr_recall = {}
+        total_avr_precision = {}
+        mAP = {}
+        total_mAP = {}
         cls = []
         cls_count = []
+
         p_threshold = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15,
                        0.1, 0.05]
-        #
-        for i in range(len(CLASSES)):
-            CLASSES[i] = CLASSES[i].lower()
-        for c in CLASSES:
-            if c in except_classes:
-                pass
-            else:
-                total_accs[c] = []
+
         #
         for iter, (data, target, label, idx) in enumerate(self.val_loader):
             cls = []
-            total_ious = []
-            total_accs = {}
-            avr_precision = {}
-            avr_recall = {}
-            #
-            self.global_step += 1
             #
             data = data.to(self.device)
             target = target.to(self.device)
@@ -245,54 +238,89 @@ class Trainer():
 
             for i in range(len(iou)):
                 for key, val in iou[i].items():
-                    if key in cls:
-                        a = cls.index(key)
-                        total_ious[a] += val
-                        cls_count[a] += 1
+                    if key in except_classes:
+                        pass
                     else:
-                        cls.append(key)
-                        total_ious.append(val)
-                        cls_count.append(1)
+                        total_ious.setdefault(key, []).append(val)
 
-            avr_ious = [total / count for total, count in zip(total_ious, cls_count)]
-            cls_count.clear()
 
             # Pixel Acc
-
             x = pixel_acc_cls(pred[0].cpu(), label[0].cpu(), json_path)
             for key, val in x.items():
-                if len(val) > 1:
-                    total_accs[key] = sum(val) / len(val)
-                    c = CLASSES.index(key)
-
+                if key in except_classes:
+                    pass
                 else:
-                    total_accs[key] = val[0]
-                    c = CLASSES.index(key)
+                    if len(val) > 1:
+                        total_accs.setdefault(key, []).append(sum(val) / len(val))
+
+                    else:
+                        total_accs.setdefault(key, []).append(val[0])
 
             #
             precision, recall = precision_recall(target[0], pred_softmax[0], json_path, threshold=p_threshold)
             for key, val in precision.items():
                 for key2, val2 in val.items():
+                    total_avr_precision.setdefault(key2, {}).setdefault(key, []).append(val2[0].cpu())
                     if key == 0.5:
-                        if len(val2) > 1:
-                            avr_precision[key2] = sum(val2) / len(val2)
+                        if key2 in except_classes:
+                            pass
                         else:
-                            avr_precision[key2] = val2[0]
+                            if len(val2) > 1:
+                                avr_precision.setdefault(key2, []).append(sum(val2) / len(val2))
+                            else:
+                                avr_precision.setdefault(key2, []).append(val2[0])
 
             #
             for key, val in recall.items():
                 for key2, val2 in val.items():
                     if key == 0.5:
-                        if len(val2) > 1:
-                            avr_recall[key2] = sum(val2) / len(val2)
+                        if key2 in except_classes:
+                            pass
                         else:
-                            avr_recall[key2] = val2[0]
+                            if len(val2) > 1:
+                                avr_recall.setdefault(key2, []).append(sum(val2) / len(val2))
+                            else:
+                                avr_recall.setdefault(key2, []).append(val2[0])
 
+        # mAP
+        for key, val in total_avr_precision.items():
+            result = 0
+            for key2, val2 in val.items():
+                result = sum(val2) / len(val2)
+                mAP.setdefault(str(key2), []).append(result)
 
+        for key, val in mAP.items():
+            total_mAP.setdefault(key,[]).append(sum(val) / len(val))
+
+        # ious
+        for k, v in total_ious.items():
+            if len(v) > 1:
+                total_ious[k] = sum(v) / len(v)
+            else:
+                total_ious[k] = v
+        # Acc
+        for k, v in total_accs.items():
+            if len(v) > 1:
+                total_accs[k] = sum(v) / len(v)
+            else:
+                total_accs[k] = v
+
+        # precision
+        for k, v in avr_precision.items():
+            if len(v) > 1:
+                avr_precision[k] = sum(v) / len(v)
+            else:
+                avr_precision[k] = v
+
+        # recall
+        for k, v in avr_recall.items():
+            if len(v) > 1:
+                avr_recall[k] = sum(v) / len(v)
+            else:
+                avr_recall[k] = v
 
         self.model.train()
-
-        return avr_ious, total_accs, cls, org_cls, target_crop_image, pred_crop_image, avr_precision, avr_recall
+        return total_ious, total_accs, cls, org_cls, target_crop_image, pred_crop_image, avr_precision, avr_recall, total_mAP
 
 
     def save_model(self, save_path):
