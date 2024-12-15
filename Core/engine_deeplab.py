@@ -11,14 +11,13 @@ from tqdm import tqdm
 from copy import deepcopy
 from Core.functions import *
 from torch.utils.tensorboard import SummaryWriter
-from PIL import Image
 import matplotlib.pyplot as plt
 from distutils.version import LooseVersion
-import torchvision.transforms as transforms
 from torchvision.utils import make_grid
 import torch.nn.functional as F
 from model.deeplabv3plus import *
 from backbone.ResNet import build_backbone
+
 
 
 except_classes = ['motorcycle', 'bicycle', 'twowheeler', 'pedestrian', 'rider', 'sidewalk', 'crosswalk', 'speedbump', 'redlane', 'stoplane', 'trafficlight']
@@ -29,6 +28,7 @@ CLASSES = [
     'yellowLane', 'blueLane', 'constructionGuide', 'trafficDrum',
     'rubberCone', 'trafficSign', 'warningTriangle', 'fence'
 ]
+p_threshold = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
 
 class Trainer():
     def __init__(self, cfg):
@@ -77,10 +77,16 @@ class Trainer():
 
 
     def setup_network(self):
-        model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
-                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False)
+        if self.cfg['model']['mode'] == 'train':
+            pretrain=True
+        else:
+            pretrain = False
 
-        return model
+        model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
+                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain)
+
+
+        return model.to(self.device)
 
     def setup_optimizer(self):
         if self.cfg['solver']['optimizer'] == "sgd":
@@ -136,15 +142,17 @@ class Trainer():
     def training(self):
         print("start training_model_{}".format(self.cfg['args']['network_name']))
         self.model.train()
-
+        tmp = 0
+        tmp2 = 0
         #
         for curr_epoch in range(self.cfg['args']['epochs']):
             #
             if (curr_epoch + 1) % 3 == 0:
-                avr_ious, total_accs, cls, org_cls, target_crop_image, pred_crop_image, avr_precision, avr_recall = self.validation()
+                total_ious, total_accs, cls, org_cls, target_crop_image, pred_crop_image, avr_precision, avr_recall, mAP = self.validation()
 
-                for i in range(len(avr_ious)):
-                    self.writer.add_scalar(tag='total_ious/{}'.format(cls[i]), scalar_value=avr_ious[i], global_step = self.global_step)
+                for key, val in total_ious.items():
+                    self.writer.add_scalar(tag='total_ious/{}'.format(key), scalar_value=val,
+                                           global_step=self.global_step)
 
                 # Crop Image
                 for i in range(len(target_crop_image)):
@@ -153,27 +161,48 @@ class Trainer():
                     self.writer.add_image('pred /' + org_cls[i], pred_to_class_rgb(pred_crop_image[i], org_cls[i]),
                                           dataformats='HWC', global_step=self.global_step)
                 # Pixel Acc
-                for i in range(len(cls)):
-                    self.writer.add_scalar(tag='pixel_accs/{}'.format(cls[i]), scalar_value=total_accs[cls[i]], global_step=self.global_step)
+                for key, val in total_accs.items():
+                    self.writer.add_scalar(tag='pixel_accs/{}'.format(key), scalar_value=val,
+                                           global_step=self.global_step)
 
                 # precision & recall
-                for i in range(len(cls)):
-                    self.writer.add_scalar(tag='precision/{}'.format(cls[i]), scalar_value=avr_precision[cls[i]], global_step=self.global_step)
-                for i in range(len(cls)):
-                    self.writer.add_scalar(tag='recall/{}'.format(cls[i]), scalar_value=avr_recall[cls[i]], global_step=self.global_step)
+                for key, val in avr_precision.items():
+                    self.writer.add_scalar(tag='precision/{}'.format(key), scalar_value=val,
+                                           global_step=self.global_step)
+                for key, val in avr_recall.items():
+                    self.writer.add_scalar(tag='recall/{}'.format(key), scalar_value=val,
+                                           global_step=self.global_step)
+                # mAP
+                z = []
+                for i in range(len(p_threshold)):
+                    self.writer.add_scalar(tag='mAP/{}'.format(str(p_threshold[i])),
+                                           scalar_value=mAP[str(p_threshold[i])][0],
+                                           global_step=self.global_step)
+                    z.append(mAP[str(p_threshold[i])][0])
+                max_z = max(z)
+
+                # for save 1 -> max_prob_mAP
+                if max_z > tmp:
+                    tmp = max_z
+                    self.save_model(self.cfg['model']['checkpoint'])
 
             #
-            for batch_idx, (data, target, label, json) in tqdm(enumerate(self.train_loader), total=len(self.train_loader),
-                                                         desc="[Epoch][{}/{}]".format(curr_epoch + 1, self.cfg['args']['epochs']), ncols=80,
-                                                         leave=False):
+            for batch_idx, (data, target, label, json) in tqdm(enumerate(self.train_loader),
+                                                               total=len(self.train_loader),
+                                                               desc="[Epoch][{}/{}]".format(curr_epoch + 1,
+                                                                                            self.cfg['args']['epochs']),
+                                                               ncols=80,
+                                                               leave=False):
                 self.global_step += 1
 
-                data = data
-                target = target
-                label = label
+                data = data.to(self.device)
+                target = target.to(self.device)
+                label = label.to(self.device)
                 label = label.type(torch.long)
                 #
+
                 out = self.model(data)
+
                 #
                 loss = self.loss(out, label)
 
@@ -193,14 +222,11 @@ class Trainer():
                                           trg_to_rgb(target[0]),
                                           dataformats='HWC', global_step=self.global_step)
 
-
             self.scheduler.step()
             self.writer.add_scalar(tag='train/lr', scalar_value=self.optimizer.param_groups[0]['lr'],
                                    global_step=curr_epoch)
 
-            if self.global_step % 2 == 0:
-                self.save_model(self.cfg['model']['checkpoint'])
-        #
+            #
 
     def validation(self):
         self.model.eval()
@@ -243,7 +269,6 @@ class Trainer():
                     else:
                         total_ious.setdefault(key, []).append(val)
 
-
             # Pixel Acc
             x = pixel_acc_cls(pred[0].cpu(), label[0].cpu(), json_path)
             for key, val in x.items():
@@ -282,7 +307,7 @@ class Trainer():
                             else:
                                 avr_recall.setdefault(key2, []).append(val2[0])
 
-        # mAP
+        #
         for key, val in total_avr_precision.items():
             result = 0
             for key2, val2 in val.items():
@@ -290,44 +315,57 @@ class Trainer():
                 mAP.setdefault(str(key2), []).append(result)
 
         for key, val in mAP.items():
-            total_mAP.setdefault(key,[]).append(sum(val) / len(val))
+            total_mAP.setdefault(key, []).append(sum(val) / len(val))
 
-        # ious
+        #
         for k, v in total_ious.items():
             if len(v) > 1:
                 total_ious[k] = sum(v) / len(v)
             else:
                 total_ious[k] = v
-        # Acc
+        #
         for k, v in total_accs.items():
             if len(v) > 1:
                 total_accs[k] = sum(v) / len(v)
             else:
                 total_accs[k] = v
-
-        # precision
+        #
         for k, v in avr_precision.items():
             if len(v) > 1:
                 avr_precision[k] = sum(v) / len(v)
             else:
                 avr_precision[k] = v
-
-        # recall
+        #
         for k, v in avr_recall.items():
             if len(v) > 1:
                 avr_recall[k] = sum(v) / len(v)
             else:
                 avr_recall[k] = v
+        #
+        for k, v in mAP.items():
+            if len(v) > 1:
+                mAP[k] = sum(v) / len(v)
+            else:
+                mAP[k] = v
 
         self.model.train()
         return total_ious, total_accs, cls, org_cls, target_crop_image, pred_crop_image, avr_precision, avr_recall, total_mAP
 
 
     def save_model(self, save_path):
-        save_file = 'fcn_epochs:{}_optimizer:{}_lr:{}_model{}.pth'.format(self.cfg['args']['epochs'],
-                                                                  self.cfg['solver']['optimizer'],
-                                                                  self.cfg['solver']['lr'],
-                                                                  self.cfg['args']['network_name'])
+        save_file = 'Pretrained_resnet50_DeepLabv3+_epochs:{}_optimizer:{}_lr:{}_model{}_max_prob_mAP.pth'.format(self.cfg['args']['epochs'],
+                                                                          self.cfg['solver']['optimizer'],
+                                                                          self.cfg['solver']['lr'],
+                                                                          self.cfg['args']['network_name'])
         path = os.path.join(save_path, save_file)
-        torch.save({'model': deepcopy(self.model), 'optimizer': self.optimizer.state_dict()}, path)
-        print("Success save")
+        torch.save({'model': deepcopy(self.model)}, path)
+        print("Success save_max_prob_mAP")
+
+    # def save_model2(self, save_path):
+    #     save_file = 'DeepLabv3_epochs:{}_optimizer:{}_lr:{}_model{}_total_mAP.pth'.format(self.cfg['args']['epochs'],
+    #                                                                       self.cfg['solver']['optimizer'],
+    #                                                                       self.cfg['solver']['lr'],
+    #                                                                       self.cfg['args']['network_name'])
+    #     path = os.path.join(save_path, save_file)
+    #     torch.save({'model': deepcopy(self.model)}, path)
+    #     print("Success save_avr_mAP")

@@ -7,12 +7,13 @@ from backbone.ResNet import build_backbone
 
 
 class DeepLab(nn.Module):
-    def __init__(self, backbone='resnet', output_stride=16, num_classes=21, sync_bn=False, freeze_bn=False):
+    def __init__(self, backbone='resnet', output_stride=16, num_classes=21, sync_bn=False, freeze_bn=False, pretrained=False):
         super(DeepLab, self).__init__()
         if backbone == 'drn':
             output_stride = 8
         BatchNorm = nn.BatchNorm2d
-        self.backbone = build_backbone(backbone, output_stride, BatchNorm)
+        self.pretrained = pretrained
+        self.backbone = build_backbone(backbone, output_stride, BatchNorm, self.pretrained)
         self.aspp = build_aspp(backbone, output_stride, BatchNorm)
         self.decoder = build_decoder(num_classes, backbone, BatchNorm)
 

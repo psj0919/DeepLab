@@ -33,15 +33,21 @@ def get_test_config_dict():
     )
     args = dict(
         gpu_id='0',
-        num_workers=6
+        num_workers=6,
+        network_name='DeepLabV3+'
+    )
+    solver = dict(
+        backbone = 'resnet50',
+        output_stride=16,
     )
     model = dict(
-        resume=' ',  # weight_file
+        resume='/storage/sjpark/vehicle_data/checkpoints/deeplab/256/Pretrained_resnet50_DeepLabv3+_epochs:100_optimizer:adam_lr:0.0001_modelDeepLabV3+_max_prob_mAP.pth',  # weight_file
         mode='test',
         save_dir='/storage/sjpark/vehicle_data/runs/deeplab/test/256',   # runs_file
     )
     config = dict(
         args=args,
+        solver = solver,
         dataset=dataset,
         model=model
     )

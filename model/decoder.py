@@ -8,7 +8,7 @@ from toolz.curried import random_sample
 class Decoder(nn.Module):
     def __init__(self, num_classes, backbone, BatchNorm):
         super(Decoder, self).__init__()
-        if backbone == 'resnet' or backbone == 'drn':
+        if backbone == 'resnet18' or backbone == 'resnet50' or backbone == 'drn':
             low_level_inplanes = 256
         elif backbone == 'xception':
             low_level_inplanes = 128

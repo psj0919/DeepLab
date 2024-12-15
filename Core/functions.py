@@ -616,3 +616,14 @@ def class_per_histogram(acc, iou, precision, recall):
     #     plt.savefig('/storage/sjpark/vehicle_data/histogram/FCN/FCN8s/512/{}/{}'.format(cls[i], cls[i] + '_Recall'))
     #     plt.close()
     #     recalls.clear()
+
+
+
+
+
+
+
+
+
+
+

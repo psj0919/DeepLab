@@ -135,16 +135,20 @@ class ResNet(nn.Module):
                 m.bias.data.zero_()
 
     def _load_pretrained_model(self):
-        pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
-        #pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-0676ba61.pth')
+        # pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
+        pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-0676ba61.pth')
         #pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet18-f37072fd.pth')
-        model_dict = {}
-        state_dict = self.state_dict()
-        for k, v in pretrain_dict.items():
-            if k in state_dict:
-                model_dict[k] = v
-        state_dict.update(model_dict)
-        self.load_state_dict(state_dict)
+        try:
+            model_dict = {}
+            state_dict = self.state_dict()
+            for k, v in pretrain_dict.items():
+                if k in state_dict:
+                    model_dict[k] = v
+            state_dict.update(model_dict)
+            self.load_state_dict(state_dict)
+            print("Success Load weight !!")
+        except:
+            raise
 
 def resnet18(output_stride, BatchNorm, pretrained=False):
     return ResNet(Bottleneck, [2, 2, 2, 2], output_stride, BatchNorm, pretrained=pretrained)
@@ -158,16 +162,19 @@ def resnet101(output_stride, BatchNorm, pretrained=False):
 
 
 
-def build_backbone(backbone, output_stride, BatchNorm):
-    if backbone == 'resnet':
-        return resnet18(output_stride, BatchNorm)
+def build_backbone(backbone, output_stride, BatchNorm, pretrained):
+    if backbone == 'resnet18':
+        return resnet18(output_stride, BatchNorm, pretrained)
+    elif backbone == 'resnet50':
+        return resnet50(output_stride, BatchNorm, pretrained)
     else:
         NotImplementedError
 
 
 if __name__=='__main__':
     import torch
-    model = resnet18(BatchNorm=nn.BatchNorm2d, pretrained=False, output_stride=8)
+    model1 = resnet50(BatchNorm=nn.BatchNorm2d, pretrained=False, output_stride=8)
+    model = resnet50(BatchNorm=nn.BatchNorm2d, pretrained=True, output_stride=8)
     input = torch.rand(1, 3, 256, 256)
     output, low_level_feat = model(input)
     print(output.size())

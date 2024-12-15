@@ -1,4 +1,3 @@
-from model.FCN8s import FCN8s
 from Config.config_test import get_test_config_dict
 from Core.engine_deeplab_test import Trainer
 

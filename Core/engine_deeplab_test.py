@@ -4,15 +4,19 @@ import cv2
 import numpy as np
 import torch
 import torchvision
+import time
+import matplotlib.pyplot as plt
+import torchvision.transforms as transforms
+
 from dataset.dataset import vehicledata
 from tqdm import tqdm
 from copy import deepcopy
 from Core.functions import *
 from torch.utils.tensorboard import SummaryWriter
 from PIL import Image
-import matplotlib.pyplot as plt
+from model.deeplabv3plus import *
+from backbone.ResNet import build_backbone
 from distutils.version import LooseVersion
-import torchvision.transforms as transforms
 from torchvision.utils import make_grid
 import torch.nn.functional as F
 
@@ -57,27 +61,26 @@ class Trainer():
         return loader
 
     def setup_network(self):
-        if self.cfg['args']['network_name'] == "fcn8":
-            from model.FCN8s import FCN8s
-            return FCN8s(num_class=self.cfg['dataset']['num_class']).to(self.device)
-        elif self.cfg['args']['network_name'] == "fcn16":
-            from model.FCN16s import FCN16s
-            return FCN16s(num_class=self.cfg['dataset']['num_class']).to(self.device)
-        elif self.cfg['args']['network_name'] == "fcn32":
-            from model.FCN32s import FCN32s
-            return FCN32s(num_class=self.cfg['dataset']['num_class']).to(self.device)
+        model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
+                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=False)
+
+        return model.to(self.device)
 
     def load_weight(self):
         if self.cfg['model']['mode'] == 'train':
             pass
         elif self.cfg['model']['mode'] == 'test':
-            file_path = self.cfg['model']['resume']
-            assert os.path.exists(file_path), f'There is no checkpoints file!'
-            print("Loading saved weighted {}".format(file_path))
-            ckpt = torch.load(file_path, map_location=self.device)
-            resume_state_dict = ckpt['model'].state_dict()
+            try:
+                file_path = self.cfg['model']['resume']
+                assert os.path.exists(file_path), f'There is no checkpoints file!'
+                print("Loading saved weighted {}".format(file_path))
+                ckpt = torch.load(file_path, map_location=self.device)
+                resume_state_dict = ckpt['model'].state_dict()
 
-            self.model.load_state_dict(resume_state_dict, strict=True)  # load weights
+                self.model.load_state_dict(resume_state_dict, strict=True)  # load weights
+                print("success weight load!!")
+            except:
+                raise
         else:
             raise NotImplementedError("Not Implemented {}".format(self.cfg['dataset']['mode']))
 
@@ -90,6 +93,7 @@ class Trainer():
         total_avr_iou = {}
         total_avr_precision = {}
         total_avr_recall = {}
+        fps = []
         #
         for i in range(len(CLASSES)):
             CLASSES[i] = CLASSES[i].lower()
@@ -107,15 +111,17 @@ class Trainer():
             data = data.to(self.device)
             target = target.to(self.device)
             label = label.to(self.device)
-
+            s_time = time.time()
             logits = self.model(data)
+            e_time = time.time()
+            fps.append(1 / (e_time - s_time))
             pred = logits.softmax(dim=1).argmax(dim=1).to('cpu')
             pred_ = pred.to(self.device)
             pred_softmax = logits.softmax(dim=1)
             target_ = target.softmax(dim=1).argmax(dim=1).to('cpu')
             file, json_path = load_json_file(int(idx))
             # Iou
-            iou = make_bbox(file, json_path, target_, pred)
+            iou = make_bbox(json_path, target_, pred)
             # Crop image
             target_crop_image, pred_crop_image, org_cls = crop_image(target[0], logits[0], json_path)
 
@@ -173,34 +179,33 @@ class Trainer():
             #     #
             #     for i in range(len(avr_ious)):
             #         self.writer.add_scalar(tag='total_ious/{}'.format(cls[i]), scalar_value=avr_ious[i], global_step = self.global_step)
-            #
-            #     # Crop Image
-            #     for i in range(len(target_crop_image)):
-            #         self.writer.add_image('target /' + org_cls[i], trg_to_class_rgb(target_crop_image[i], org_cls[i]),
-            #                               dataformats='HWC', global_step=self.global_step)
-            #         self.writer.add_image('pred /' + org_cls[i], pred_to_class_rgb(pred_crop_image[i], org_cls[i]),
-            #                               dataformats='HWC', global_step=self.global_step)
-            #     # Pixel Acc
-            #     for i in range(len(cls)):
-            #         self.writer.add_scalar(tag='pixel_accs/{}'.format(cls[i]), scalar_value=total_accs[cls[i]], global_step=self.global_step)
-            #
-            #     # precision & recall
-            #     for i in range(len(cls)):
-            #         self.writer.add_scalar(tag='precision/{}'.format(cls[i]), scalar_value=avr_precision[cls[i]], global_step=self.global_step)
-            #     for i in range(len(cls)):
-            #         self.writer.add_scalar(tag='recall/{}'.format(cls[i]), scalar_value=avr_recall[cls[i]], global_step=self.global_step)
-            #
-            #     #
-            #     self.writer.add_image('train/predict_image',
-            #                           pred_to_rgb(logits[0]),
-            #                           dataformats='HWC', global_step=self.global_step)
-            #     #
-            #     self.writer.add_image('train/target_image',
-            #                           trg_to_rgb(target[0]),
-            #                           dataformats='HWC', global_step=self.global_step)
+                # Crop Image
+                # for i in range(len(target_crop_image)):
+                #     self.writer.add_image('target /' + org_cls[i], trg_to_class_rgb(target_crop_image[i], org_cls[i]),
+                #                           dataformats='HWC', global_step=self.global_step)
+                #     self.writer.add_image('pred /' + org_cls[i], pred_to_class_rgb(pred_crop_image[i], org_cls[i]),
+                #                           dataformats='HWC', global_step=self.global_step)
+                # # Pixel Acc
+                # for i in range(len(cls)):
+                #     self.writer.add_scalar(tag='pixel_accs/{}'.format(cls[i]), scalar_value=total_accs[cls[i]], global_step=self.global_step)
+                #
+                # # precision & recall
+                # for i in range(len(cls)):
+                #     self.writer.add_scalar(tag='precision/{}'.format(cls[i]), scalar_value=avr_precision[cls[i]], global_step=self.global_step)
+                # for i in range(len(cls)):
+                #     self.writer.add_scalar(tag='recall/{}'.format(cls[i]), scalar_value=avr_recall[cls[i]], global_step=self.global_step)
+
+                #
+                # self.writer.add_image('train/predict_image',
+                #                       pred_to_rgb(logits[0]),
+                #                       dataformats='HWC', global_step=self.global_step)
+                # #
+                # self.writer.add_image('train/target_image',
+                #                       trg_to_rgb(target[0]),
+                #                       dataformats='HWC', global_step=self.global_step)
 
 
-        class_per_histogram(total_avr_acc, total_avr_iou, total_avr_precision, total_avr_recall)
+        # class_per_histogram(total_avr_acc, total_avr_iou, total_avr_precision, total_avr_recall)
 
         # for key ,val in total_avr_iou.items():
         #     self.writer.add_scalar(tag='total_average_ious/{}'.format(key), scalar_value=sum(val) / len(val),
@@ -218,17 +223,21 @@ class Trainer():
         for key ,val in total_avr_iou.items():
             x += sum(val) / len(val)
         x = x / len(total_avr_iou.keys())
+        #
+        print(f'mioU:{x}')
+        print(f'FPS:{np.mean(fps)}')
 
-        self.writer.add_scalar(tag='miou', scalar_value=x, global_step=1)
-
+        # self.writer.add_scalar(tag='miou', scalar_value=x, global_step=1)
+        # #FPS
+        # self.writer.add_scalar(tag='FPS', scalar_value=1 / (sum(fps) / len(fps)), global_step=1)
 
         for key, val in total_avr_precision.items():
             for key2, val2 in val.items():
-                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/FCN32s/256/precision/{}/{}_{}.txt".format(key, key, key2)
+                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/DeepLab/max_mAP/256/precision/{}/{}_{}.txt".format(key, key, key2)
                 np.savetxt(path, total_avr_precision[key][key2], fmt= '%f')
 
         for key, val in total_avr_recall.items():
             for key2, val2 in val.items():
-                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/FCN32s/256/recall/{}/{}_{}.txt".format(key, key, key2)
+                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/DeepLab/max_mAP/256/recall/{}/{}_{}.txt".format(key, key, key2)
                 np.savetxt(path, total_avr_recall[key][key2], fmt='%f')
 
