@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from distutils.version import LooseVersion
 from torchvision.utils import make_grid
 import torch.nn.functional as F
-from model.deeplabv3plus import *
+from model.RepVGG_ResNet_deeplabv3plus import *
 from backbone.ResNet import build_backbone
 
 
@@ -42,7 +42,7 @@ class Trainer():
         self.scheduler = self.setup_scheduler()
         self.global_step = 0
         self.save_path = self.cfg['model']['save_dir']
-        self.writer = SummaryWriter(log_dir=self.save_path)
+        # self.writer = SummaryWriter(log_dir=self.save_path)
         self.load_weight()
 
     def setup_device(self):
@@ -133,9 +133,9 @@ class Trainer():
             assert os.path.exists(file_path), f'There is no checkpoints file!'
             print("Loading saved weighted {}".format(file_path))
             ckpt = torch.load(file_path, map_location=self.device)
-            resume_state_dict = ckpt['model'].state_dict()
+            # resume_state_dict = ckpt['model'].state_dict()
 
-            self.model.load_state_dict(resume_state_dict, strict=True)  # load weights
+            self.model.load_state_dict(ckpt, strict=True)  # load weights
         else:
             raise NotImplementedError("Not Implemented {}".format(self.cfg['dataset']['mode']))
 
@@ -147,7 +147,8 @@ class Trainer():
         #
         for curr_epoch in range(self.cfg['args']['epochs']):
             #
-            if (curr_epoch + 1) % 3 == 0:
+            if (curr_epoch + 1) % 1 == 0:
+                self.save_model(self.cfg['model']['checkpoint'])
                 total_ious, total_accs, cls, org_cls, target_crop_image, pred_crop_image, avr_precision, avr_recall, mAP = self.validation()
 
                 for key, val in total_ious.items():
@@ -353,19 +354,15 @@ class Trainer():
 
 
     def save_model(self, save_path):
-        save_file = 'Pretrained_resnet50_DeepLabv3+_epochs:{}_optimizer:{}_lr:{}_model{}_max_prob_mAP.pth'.format(self.cfg['args']['epochs'],
+        save_file = 'RepVGG_resnet50_DeepLabv3+_epochs:{}_optimizer:{}_lr:{}_model{}_max_prob_mAP.pth'.format(self.cfg['args']['epochs'],
                                                                           self.cfg['solver']['optimizer'],
                                                                           self.cfg['solver']['lr'],
                                                                           self.cfg['args']['network_name'])
         path = os.path.join(save_path, save_file)
-        torch.save({'model': deepcopy(self.model)}, path)
+        model = deepcopy(self.model)
+        convert_model = self.model.backbone.repvgg_model_convert()
+        model.backbone = convert_model
+
+        torch.save(model.state_dict(), path)
         print("Success save_max_prob_mAP")
 
-    # def save_model2(self, save_path):
-    #     save_file = 'DeepLabv3_epochs:{}_optimizer:{}_lr:{}_model{}_total_mAP.pth'.format(self.cfg['args']['epochs'],
-    #                                                                       self.cfg['solver']['optimizer'],
-    #                                                                       self.cfg['solver']['lr'],
-    #                                                                       self.cfg['args']['network_name'])
-    #     path = os.path.join(save_path, save_file)
-    #     torch.save({'model': deepcopy(self.model)}, path)
-    #     print("Success save_avr_mAP")

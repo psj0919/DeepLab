@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 # from models.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 from pytorch_lightning.utilities.apply_func import Batch
-
+import time
 
 class Bottleneck(nn.Module):
     expansion = 4
@@ -117,12 +117,12 @@ class ResNet(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
-
         x = self.layer1(x)
         low_level_feat = x
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
+
         return x, low_level_feat
 
     def _init_weight(self):
@@ -135,8 +135,8 @@ class ResNet(nn.Module):
                 m.bias.data.zero_()
 
     def _load_pretrained_model(self):
-        # pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
-        pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-0676ba61.pth')
+        pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
+        # pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-0676ba61.pth')
         #pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet18-f37072fd.pth')
         try:
             model_dict = {}
@@ -167,6 +167,9 @@ def build_backbone(backbone, output_stride, BatchNorm, pretrained):
         return resnet18(output_stride, BatchNorm, pretrained)
     elif backbone == 'resnet50':
         return resnet50(output_stride, BatchNorm, pretrained)
+    elif backbone == 'resnet101':
+        return resnet101(output_stride, BatchNorm, pretrained)
+
     else:
         NotImplementedError
 
@@ -174,8 +177,9 @@ def build_backbone(backbone, output_stride, BatchNorm, pretrained):
 if __name__=='__main__':
     import torch
     model1 = resnet50(BatchNorm=nn.BatchNorm2d, pretrained=False, output_stride=8)
-    model = resnet50(BatchNorm=nn.BatchNorm2d, pretrained=True, output_stride=8)
     input = torch.rand(1, 3, 256, 256)
-    output, low_level_feat = model(input)
-    print(output.size())
-    print(low_level_feat.size())
+    out = model1(input)
+    from fvcore.nn import FlopCountAnalysis
+
+    flops = FlopCountAnalysis(model1, input)
+    #25081806848

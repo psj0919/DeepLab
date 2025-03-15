@@ -14,7 +14,7 @@ from copy import deepcopy
 from Core.functions import *
 from torch.utils.tensorboard import SummaryWriter
 from PIL import Image
-from model.deeplabv3plus import *
+from model.RepVGG_ResNet_deeplabv3plus import *
 from backbone.ResNet import build_backbone
 from distutils.version import LooseVersion
 from torchvision.utils import make_grid
@@ -61,8 +61,9 @@ class Trainer():
         return loader
 
     def setup_network(self):
+        pretrain = False
         model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
-                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=False)
+                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain, deploy=self.cfg['solver']['deploy'])
 
         return model.to(self.device)
 
@@ -73,11 +74,10 @@ class Trainer():
             try:
                 file_path = self.cfg['model']['resume']
                 assert os.path.exists(file_path), f'There is no checkpoints file!'
-                print("Loading saved weighted {}".format(file_path))
                 ckpt = torch.load(file_path, map_location=self.device)
-                resume_state_dict = ckpt['model'].state_dict()
+                # resume_state_dict = ckpt['model'].state_dict()
 
-                self.model.load_state_dict(resume_state_dict, strict=True)  # load weights
+                self.model.load_state_dict(ckpt, strict=True)  # load weights
                 print("success weight load!!")
             except:
                 raise
@@ -87,6 +87,7 @@ class Trainer():
 
     def test(self):
         self.model.eval()
+
         print("start testing_model_{}".format(self.cfg['args']['network_name']))
         cls_count = []
         total_avr_acc = {}
@@ -111,10 +112,16 @@ class Trainer():
             data = data.to(self.device)
             target = target.to(self.device)
             label = label.to(self.device)
-            s_time = time.time()
-            logits = self.model(data)
-            e_time = time.time()
-            fps.append(1 / (e_time - s_time))
+            start_event = torch.cuda.Event(enable_timing=True)
+            end_event = torch.cuda.Event(enable_timing=True)
+            with torch.no_grad():
+                start_event.record()
+                logits = self.model(data)
+                end_event.record()
+            torch.cuda.synchronize()
+            time_token = start_event.elapsed_time(end_event)
+            fps.append(1 / (time_token/ 1000))
+
             pred = logits.softmax(dim=1).argmax(dim=1).to('cpu')
             pred_ = pred.to(self.device)
             pred_softmax = logits.softmax(dim=1)
@@ -138,7 +145,10 @@ class Trainer():
 
             avr_ious = [total / count for total, count in zip(total_ious, cls_count)]
             for i in range(len(avr_ious)):
-                total_avr_iou.setdefault(cls[i], []).append(avr_ious[i])
+                if cls[i] == 'constructionguide' or cls[i] == 'trafficdrum':
+                    pass
+                else:
+                    total_avr_iou.setdefault(cls[i], []).append(avr_ious[i])
             cls_count.clear()
 
             # Pixel Acc
@@ -179,30 +189,30 @@ class Trainer():
             #     #
             #     for i in range(len(avr_ious)):
             #         self.writer.add_scalar(tag='total_ious/{}'.format(cls[i]), scalar_value=avr_ious[i], global_step = self.global_step)
-                # Crop Image
-                # for i in range(len(target_crop_image)):
-                #     self.writer.add_image('target /' + org_cls[i], trg_to_class_rgb(target_crop_image[i], org_cls[i]),
-                #                           dataformats='HWC', global_step=self.global_step)
-                #     self.writer.add_image('pred /' + org_cls[i], pred_to_class_rgb(pred_crop_image[i], org_cls[i]),
-                #                           dataformats='HWC', global_step=self.global_step)
-                # # Pixel Acc
-                # for i in range(len(cls)):
-                #     self.writer.add_scalar(tag='pixel_accs/{}'.format(cls[i]), scalar_value=total_accs[cls[i]], global_step=self.global_step)
-                #
-                # # precision & recall
-                # for i in range(len(cls)):
-                #     self.writer.add_scalar(tag='precision/{}'.format(cls[i]), scalar_value=avr_precision[cls[i]], global_step=self.global_step)
-                # for i in range(len(cls)):
-                #     self.writer.add_scalar(tag='recall/{}'.format(cls[i]), scalar_value=avr_recall[cls[i]], global_step=self.global_step)
-
-                #
-                # self.writer.add_image('train/predict_image',
-                #                       pred_to_rgb(logits[0]),
-                #                       dataformats='HWC', global_step=self.global_step)
-                # #
-                # self.writer.add_image('train/target_image',
-                #                       trg_to_rgb(target[0]),
-                #                       dataformats='HWC', global_step=self.global_step)
+            #     # Crop Image
+            #     for i in range(len(target_crop_image)):
+            #         self.writer.add_image('target /' + org_cls[i], trg_to_class_rgb(target_crop_image[i], org_cls[i]),
+            #                               dataformats='HWC', global_step=self.global_step)
+            #         self.writer.add_image('pred /' + org_cls[i], pred_to_class_rgb(pred_crop_image[i], org_cls[i]),
+            #                               dataformats='HWC', global_step=self.global_step)
+            #     # Pixel Acc
+            #     for i in range(len(cls)):
+            #         self.writer.add_scalar(tag='pixel_accs/{}'.format(cls[i]), scalar_value=total_accs[cls[i]], global_step=self.global_step)
+            #
+            #     # precision & recall
+            #     for i in range(len(cls)):
+            #         self.writer.add_scalar(tag='precision/{}'.format(cls[i]), scalar_value=avr_precision[cls[i]], global_step=self.global_step)
+            #     for i in range(len(cls)):
+            #         self.writer.add_scalar(tag='recall/{}'.format(cls[i]), scalar_value=avr_recall[cls[i]], global_step=self.global_step)
+            #
+            #
+            #     self.writer.add_image('train/predict_image',
+            #                           pred_to_rgb(logits[0]),
+            #                           dataformats='HWC', global_step=self.global_step)
+            #     #
+            #     self.writer.add_image('train/target_image',
+            #                           trg_to_rgb(target[0]),
+            #                           dataformats='HWC', global_step=self.global_step)
 
 
         # class_per_histogram(total_avr_acc, total_avr_iou, total_avr_precision, total_avr_recall)
@@ -230,14 +240,14 @@ class Trainer():
         # self.writer.add_scalar(tag='miou', scalar_value=x, global_step=1)
         # #FPS
         # self.writer.add_scalar(tag='FPS', scalar_value=1 / (sum(fps) / len(fps)), global_step=1)
-
-        for key, val in total_avr_precision.items():
-            for key2, val2 in val.items():
-                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/DeepLab/max_mAP/256/precision/{}/{}_{}.txt".format(key, key, key2)
-                np.savetxt(path, total_avr_precision[key][key2], fmt= '%f')
-
-        for key, val in total_avr_recall.items():
-            for key2, val2 in val.items():
-                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/DeepLab/max_mAP/256/recall/{}/{}_{}.txt".format(key, key, key2)
-                np.savetxt(path, total_avr_recall[key][key2], fmt='%f')
+        #
+        # for key, val in total_avr_precision.items():
+        #     for key2, val2 in val.items():
+        #         path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/new_dataloader/RepVGG_ResNet50_DeepLabV3+/256/precision/{}/{}_{}.txt".format(key, key, key2)
+        #         np.savetxt(path, total_avr_precision[key][key2], fmt= '%f')
+        #
+        # for key, val in total_avr_recall.items():
+        #     for key2, val2 in val.items():
+        #         path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/new_dataloader/RepVGG_ResNet50_DeepLabV3+/256/recall/{}/{}_{}.txt".format(key, key, key2)
+        #         np.savetxt(path, total_avr_recall[key][key2], fmt='%f')
 

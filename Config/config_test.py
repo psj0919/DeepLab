@@ -39,9 +39,10 @@ def get_test_config_dict():
     solver = dict(
         backbone = 'resnet50',
         output_stride=16,
+        deploy=True
     )
     model = dict(
-        resume='/storage/sjpark/vehicle_data/checkpoints/deeplab/256/Pretrained_resnet50_DeepLabv3+_epochs:100_optimizer:adam_lr:0.0001_modelDeepLabV3+_max_prob_mAP.pth',  # weight_file
+        resume='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/RepVGG_resnet50_DeepLabv3+_epochs:65_optimizer:adam_lr:0.0001_modelDeepLabV3+_max_prob_mAP.pth',  # weight_file
         mode='test',
         save_dir='/storage/sjpark/vehicle_data/runs/deeplab/test/256',   # runs_file
     )

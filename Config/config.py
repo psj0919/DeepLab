@@ -34,7 +34,7 @@ def get_config_dict():
     args = dict(
         gpu_id='0',
         batch_size=8,
-        epochs=100,
+        epochs=65,
         num_workers=6,
         network_name='DeepLabV3+'
     )
@@ -49,11 +49,13 @@ def get_config_dict():
         lr=1e-4,
         weight_decay=5e-4,
         print_freq=20,
+        deploy=False
     )
+
     model = dict(
-        resume='',  # weight_file
-        mode='train',
-        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/resnet50',
+        resume='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/RepVGG_resnet50_DeepLabv3+_epochs:65_optimizer:adam_lr:0.0001_modelDeepLabV3+_max_prob_mAP.pth',  # weight_file
+        mode='test',
+        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/RepVGG_ResNet50_DeepLab',
         checkpoint='/storage/sjpark/vehicle_data/checkpoints/deeplab/256'  # checkpoint_path
     )
     config = dict(
