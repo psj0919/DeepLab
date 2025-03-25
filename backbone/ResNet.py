@@ -60,8 +60,9 @@ class ResNet(nn.Module):
             raise NotImplementedError
 
         # Modules
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                                bias=False)
+        self.conv1 = nn.Conv2d(3, 6, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(6, 18, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv3 = nn.Conv2d(18, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = BatchNorm(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -74,7 +75,7 @@ class ResNet(nn.Module):
         self._init_weight()
 
         if pretrained:
-            self._load_pretrained_model()
+            self._load_pretrained_model(layers)
 
     def _make_layer(self, block, planes, blocks, stride=1, dilation=1, BatchNorm=None):
         downsample = None
@@ -114,6 +115,8 @@ class ResNet(nn.Module):
 
     def forward(self, input):
         x = self.conv1(input)
+        x = self.conv2(x)
+        x = self.conv3(x)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
@@ -134,18 +137,22 @@ class ResNet(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def _load_pretrained_model(self):
-        pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
-        # pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-0676ba61.pth')
-        #pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet18-f37072fd.pth')
+    def _load_pretrained_model(self, layers):
+        if layers == [3, 4, 6, 3]:
+            pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-0676ba61.pth')
+        elif layers ==[3, 4, 23, 3]:
+            pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
         try:
             model_dict = {}
             state_dict = self.state_dict()
             for k, v in pretrain_dict.items():
-                if k in state_dict:
-                    model_dict[k] = v
+                if k == 'conv1.weight':
+                    pass
+                else:
+                    if k in state_dict:
+                        model_dict[k] = v
             state_dict.update(model_dict)
-            self.load_state_dict(state_dict)
+            self.load_state_dict(state_dict, strict=False)
             print("Success Load weight !!")
         except:
             raise
@@ -176,10 +183,9 @@ def build_backbone(backbone, output_stride, BatchNorm, pretrained):
 
 if __name__=='__main__':
     import torch
-    model1 = resnet50(BatchNorm=nn.BatchNorm2d, pretrained=False, output_stride=8)
+    model1 = resnet101(BatchNorm=nn.BatchNorm2d, pretrained=True, output_stride=8)
     input = torch.rand(1, 3, 256, 256)
-    out = model1(input)
+    out, low = model1(input)
     from fvcore.nn import FlopCountAnalysis
 
     flops = FlopCountAnalysis(model1, input)
-    #25081806848

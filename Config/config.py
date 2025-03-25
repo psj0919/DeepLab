@@ -39,7 +39,7 @@ def get_config_dict():
         network_name='DeepLabV3+'
     )
     solver = dict(
-        backbone = 'resnet50',
+        backbone = 'resnet101',
         output_stride = 16,
         optimizer="adam",
         scheduler='cycliclr',
@@ -53,10 +53,10 @@ def get_config_dict():
     )
 
     model = dict(
-        resume='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/RepVGG_resnet50_DeepLabv3+_epochs:65_optimizer:adam_lr:0.0001_modelDeepLabV3+_max_prob_mAP.pth',  # weight_file
+        resume='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/RepVGG_ResNet_75456/RepVGG_ResNet101_75456.pth',  # weight_file
         mode='test',
-        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/RepVGG_ResNet50_DeepLab',
-        checkpoint='/storage/sjpark/vehicle_data/checkpoints/deeplab/256'  # checkpoint_path
+        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/RepVGG_ResNet101_28512',
+        checkpoint='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/RepVGG_ResNet_28512'  # checkpoint_path
     )
     config = dict(
         args=args,

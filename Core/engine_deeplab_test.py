@@ -64,7 +64,8 @@ class Trainer():
         pretrain = False
         model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
                         output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain, deploy=self.cfg['solver']['deploy'])
-
+        # model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
+        #                 output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain)
         return model.to(self.device)
 
     def load_weight(self):
@@ -78,6 +79,7 @@ class Trainer():
                 # resume_state_dict = ckpt['model'].state_dict()
 
                 self.model.load_state_dict(ckpt, strict=True)  # load weights
+                # self.model.load_state_dict(resume_state_dict, strict=True)  # load weights
                 print("success weight load!!")
             except:
                 raise
@@ -87,7 +89,6 @@ class Trainer():
 
     def test(self):
         self.model.eval()
-
         print("start testing_model_{}".format(self.cfg['args']['network_name']))
         cls_count = []
         total_avr_acc = {}
@@ -241,13 +242,13 @@ class Trainer():
         # #FPS
         # self.writer.add_scalar(tag='FPS', scalar_value=1 / (sum(fps) / len(fps)), global_step=1)
         #
-        # for key, val in total_avr_precision.items():
-        #     for key2, val2 in val.items():
-        #         path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/new_dataloader/RepVGG_ResNet50_DeepLabV3+/256/precision/{}/{}_{}.txt".format(key, key, key2)
-        #         np.savetxt(path, total_avr_precision[key][key2], fmt= '%f')
-        #
-        # for key, val in total_avr_recall.items():
-        #     for key2, val2 in val.items():
-        #         path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/new_dataloader/RepVGG_ResNet50_DeepLabV3+/256/recall/{}/{}_{}.txt".format(key, key, key2)
-        #         np.savetxt(path, total_avr_recall[key][key2], fmt='%f')
+        for key, val in total_avr_precision.items():
+            for key2, val2 in val.items():
+                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/new_dataloader/RepVGG_ResNet101_75456/256/precision/{}/{}_{}.txt".format(key, key, key2)
+                np.savetxt(path, total_avr_precision[key][key2], fmt= '%f')
+
+        for key, val in total_avr_recall.items():
+            for key2, val2 in val.items():
+                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/new_dataloader/RepVGG_ResNet101_75456/256/recall/{}/{}_{}.txt".format(key, key, key2)
+                np.savetxt(path, total_avr_recall[key][key2], fmt='%f')
 

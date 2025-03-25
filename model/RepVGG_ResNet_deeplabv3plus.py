@@ -12,7 +12,7 @@ class DeepLab(nn.Module):
         if backbone == 'drn':
             output_stride = 8
         BatchNorm = nn.BatchNorm2d
-        self.deploy = True
+        self.deploy = deploy
         self.pretrained = pretrained
         self.backbone = build_backbone(backbone, BatchNorm, self.deploy)
         self.aspp = build_aspp(backbone, output_stride, BatchNorm)

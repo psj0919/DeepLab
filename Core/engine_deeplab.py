@@ -42,7 +42,7 @@ class Trainer():
         self.scheduler = self.setup_scheduler()
         self.global_step = 0
         self.save_path = self.cfg['model']['save_dir']
-        # self.writer = SummaryWriter(log_dir=self.save_path)
+        self.writer = SummaryWriter(log_dir=self.save_path)
         self.load_weight()
 
     def setup_device(self):
@@ -83,8 +83,7 @@ class Trainer():
             pretrain = False
 
         model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
-                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain)
-
+                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain, deploy=self.cfg['solver']['deploy'])
 
         return model.to(self.device)
 
@@ -147,8 +146,7 @@ class Trainer():
         #
         for curr_epoch in range(self.cfg['args']['epochs']):
             #
-            if (curr_epoch + 1) % 1 == 0:
-                self.save_model(self.cfg['model']['checkpoint'])
+            if (curr_epoch + 1) % 3 == 0:
                 total_ious, total_accs, cls, org_cls, target_crop_image, pred_crop_image, avr_precision, avr_recall, mAP = self.validation()
 
                 for key, val in total_ious.items():
@@ -201,9 +199,7 @@ class Trainer():
                 label = label.to(self.device)
                 label = label.type(torch.long)
                 #
-
                 out = self.model(data)
-
                 #
                 loss = self.loss(out, label)
 
@@ -353,11 +349,15 @@ class Trainer():
         return total_ious, total_accs, cls, org_cls, target_crop_image, pred_crop_image, avr_precision, avr_recall, total_mAP
 
 
+    # def save_model(self, save_path):
+    #     save_file = 'RepVGG_ResNet101_75456.pth'
+    #     path = os.path.join(save_path, save_file)
+    #
+    #     torch.save({'model': deepcopy(self.model)}, path)
+    #     print("Success save_max_prob_mAP")
+
     def save_model(self, save_path):
-        save_file = 'RepVGG_resnet50_DeepLabv3+_epochs:{}_optimizer:{}_lr:{}_model{}_max_prob_mAP.pth'.format(self.cfg['args']['epochs'],
-                                                                          self.cfg['solver']['optimizer'],
-                                                                          self.cfg['solver']['lr'],
-                                                                          self.cfg['args']['network_name'])
+        save_file = 'RepVGG_ResNet101_28512.pth'
         path = os.path.join(save_path, save_file)
         model = deepcopy(self.model)
         convert_model = self.model.backbone.repvgg_model_convert()
@@ -365,4 +365,3 @@ class Trainer():
 
         torch.save(model.state_dict(), path)
         print("Success save_max_prob_mAP")
-

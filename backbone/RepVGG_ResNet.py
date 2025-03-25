@@ -4,8 +4,8 @@ import torch
 import copy
 import math
 import torch.nn as nn
+from difflib import get_close_matches
 import torch.utils.model_zoo as model_zoo
-from pytorch_lightning.utilities.apply_func import Batch
 from backbone.se_block import SEBlock
 
 class Bottleneck(nn.Module):
@@ -59,20 +59,20 @@ class Bottleneck(nn.Module):
 
 
 
-def resnet50(BatchNorm, deploy):
-    return RepVGG_ResNet([3, 4, 6, 3], num_classes = 21, width_multiplier=[1, 1, 1, 1], override_groups_map=None, deploy=deploy, use_se=False)
+def resnet50(BatchNorm, deploy, model_name):
+    return RepVGG_ResNet([3, 4, 6, 3], num_classes = 21, width_multiplier=[1, 1, 1, 1], override_groups_map=None, deploy=deploy, use_se=False, model_name=model_name)
 
-def resnet101(BatchNorm, deploy):
-    model = RepVGG_ResNet([3, 4, 23, 3], num_classes = 21, width_multiplier=[1, 1, 1, 1], override_groups_map=None, deploy=deploy, use_se=False)
+def resnet101(BatchNorm, deploy, model_name):
+    model = RepVGG_ResNet([3, 4, 23, 3], num_classes = 21, width_multiplier=[1, 1, 1, 1], override_groups_map=None, deploy=deploy, use_se=False, model_name=model_name)
     return model
 
 
 
 def build_backbone(backbone, BatchNorm, deploy):
     if backbone == 'resnet50':
-        return resnet50(BatchNorm, deploy)
+        return resnet50(BatchNorm, deploy, 'resnet50')
     elif backbone == 'resnet101':
-        return resnet101(BatchNorm, deploy)
+        return resnet101(BatchNorm, deploy, 'resnet101')
 
     else:
         NotImplementedError
@@ -194,7 +194,7 @@ class RepVGGBlock(nn.Module):
 
 
 class RepVGG_ResNet(nn.Module):
-    def __init__(self, num_blocks, num_classes = 1000, width_multiplier=None, override_groups_map=None, deploy=False, use_se=False):
+    def __init__(self, num_blocks, model_name, num_classes = 1000, width_multiplier=None, override_groups_map=None, deploy=False, use_se=False):
         super(RepVGG_ResNet, self).__init__()
         assert len(width_multiplier) == 4
         self.deploy = deploy
@@ -209,23 +209,31 @@ class RepVGG_ResNet(nn.Module):
         self.BatchNorm = nn.BatchNorm2d
         self.strides = [1, 2, 1, 1]
         self.dilations = [1, 1, 2, 4]
+        self.backbone_model_name = model_name
         #
-        self.stage0 = self._make_stage(64, 3, 3, stride=2, padding=1)
+        self.layer0 = self._make_stage(64, 3, 3, stride=2, padding=1)
+        # self.conv1 = nn.Conv2d(3, 64, 7, 2, 3, bias=False)
+        # self.bn1 = nn.BatchNorm2d(64)
+        # self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         #
         self.in_planes = 64
-        self.stage1 = self._make_layer(self.block, 64, self.num_block[0], stride=self.strides[0], dilation=self.dilations[0], BatchNorm=self.BatchNorm)
-        self.stage2 = self._make_layer(self.block, 128, self.num_block[1], stride=self.strides[1], dilation=self.dilations[1], BatchNorm=self.BatchNorm)
-        self.stage3 = self._make_layer(self.block, 256, self.num_block[2], stride=self.strides[2], dilation=self.dilations[2], BatchNorm=self.BatchNorm)
-        self.stage4 = self._make_MG_unit(self.block, 512, self.num_block[3], stride=self.strides[3], dilation=self.dilations[3], BatchNorm=self.BatchNorm)
+        self.layer1 = self._make_layer(self.block, 64, self.num_block[0], stride=self.strides[0], dilation=self.dilations[0], BatchNorm=self.BatchNorm)
+        self.layer2 = self._make_layer(self.block, 128, self.num_block[1], stride=self.strides[1], dilation=self.dilations[1], BatchNorm=self.BatchNorm)
+        self.layer3 = self._make_layer(self.block, 256, self.num_block[2], stride=self.strides[2], dilation=self.dilations[2], BatchNorm=self.BatchNorm)
+        self.layer4 = self._make_MG_unit(self.block, 512, self.num_block[3], stride=self.strides[3], dilation=self.dilations[3], BatchNorm=self.BatchNorm)
         self._load_pretrained_model()
     def _make_stage(self, planes, num_blocks, kernel_size, stride, padding):
         strides = [stride] + [1] *(num_blocks - 1)
+        # change channel
+        if self.in_planes==3 and planes==64:
+            planes = [64, 64, 64]
+
         blocks = []
-        for stride in strides:
+        for idx, stride in enumerate(strides):
             cur_groups = self.override_groups_map.get(self.cur_layer_idx, 1)
-            blocks.append(RepVGGBlock(in_channels=self.in_planes, out_channels=planes, kernel_size=kernel_size, stride=stride, padding=padding, groups=cur_groups, deploy=self.deploy, use_se=self.use_se))
-            self.in_planes = planes
+            blocks.append(RepVGGBlock(in_channels=self.in_planes, out_channels=planes[idx], kernel_size=kernel_size, stride=stride, padding=padding, groups=cur_groups, deploy=self.deploy, use_se=self.use_se))
+            self.in_planes = planes[idx]
             self.cur_layer_idx += 1
 
         return nn.ModuleList(blocks)
@@ -269,21 +277,24 @@ class RepVGG_ResNet(nn.Module):
         conv = []
         idx = 0
         #
-        for stage in (self.stage0):
+        for stage in (self.layer0):
             if idx == 0:
                 out = stage(x)
                 idx += 1
             else:
                 out = stage(out)
 
+        # out = self.conv1(x)
+        # out = self.bn1(out)
+        # out = self.relu(out)
         out = self.maxpool(out)
 
-        out = self.stage1(out)
+        out = self.layer1(out)
         low_level_feat = out
 
-        out = self.stage2(out)
-        out = self.stage3(out)
-        out = self.stage4(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
         return out, low_level_feat
 
     def repvgg_model_convert(model:torch.nn.Module, save_path=None, do_copy=True):
@@ -299,27 +310,65 @@ class RepVGG_ResNet(nn.Module):
         return model
 
     def _load_pretrained_model(self):
-        # pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
-        pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-0676ba61.pth')
-        #pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet18-f37072fd.pth')
-        try:
-            model_dict = {}
+        # if you try 7X7 & RepVGG_bottleneck you should change this code
+        if self.deploy == True:
+            pass
+        else:
+            if self.backbone_model_name == 'resnet50':
+                pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-0676ba61.pth')
+            elif self.backbone_model_name == 'resnet101':
+                pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
+            #
             state_dict = self.state_dict()
-            for k, v in pretrain_dict.items():
-                if k in state_dict:
-                    model_dict[k] = v
-            state_dict.update(model_dict)
-            self.load_state_dict(state_dict)
-            print("Success Load weight !!")
-        except:
-            raise
+            pretrain_keys = list(pretrain_dict.keys())
+            state_dict_keys = list(state_dict.keys())
+            del pretrain_keys[0:5]
+            del state_dict_keys[0:41]
+            #
+            index = []
+            for i in range(len(state_dict_keys)):
+                if 'rbr_identity' in state_dict_keys[i] or 'rbr_1x1' in state_dict_keys[i]:
+                    index.append(i)
+            state_dict_match_keys = []
+            for i in range(len(state_dict_keys)):
+                if i in index:
+                    pass
+                else:
+                    state_dict_match_keys.append(state_dict_keys[i])
+            #
+            model_dict = {}
+            for i in pretrain_keys:
+                if i in state_dict_match_keys:
+                    model_dict[i] = pretrain_dict[i]
+
+                else:
+                    if '.weight' in i:
+                        a, b = i.split('.weight')
+                        if a + '.0.rbr_dense.conv' + '.weight' in state_dict_match_keys:
+                            model_dict[a + '.0.rbr_dense.conv' + '.weight'] =  pretrain_dict[i]
+
+                    elif '.running_mean' in i:
+                        a, b = i.split('.running_mean')
+                        if a + '.0.rbr_dense.conv' + '.running_mean' in state_dict_match_keys:
+                            model_dict[a + '.0.rbr_dense.conv' + '.running_mean'] =  pretrain_dict[i]
+
+                    elif '.running_var' in i:
+                        a, b = i.split('.running_var')
+                        if a + '.0.rbr_dense.conv' + '.running_var' in state_dict_match_keys:
+                            model_dict[a + '.0.rbr_dense.conv' + '.running_var'] =  pretrain_dict[i]
+
+
+            try:
+                state_dict.update(model_dict)
+                self.load_state_dict(state_dict)
+                print("Success Load weight !!")
+            except:
+                raise
+
+
 
 if __name__=='__main__':
+
     x = torch.randn(1, 3, 256, 256)
-    my_model = RepVGG_ResNet([3, 4, 6, 3], 21, [1,1,1,1], None, True)
+    my_model = RepVGG_ResNet([3, 4, 6, 3], 'resnet101',21, [1,1,1,1], None, False)
     out, low_level_feature = my_model(x)
-
-    from fvcore.nn import FlopCountAnalysis
-
-    flops = FlopCountAnalysis(my_model, x)
-    #26136412160
