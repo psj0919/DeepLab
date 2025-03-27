@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from math import log
 
+
 class ECA(nn.Module):
     def __init__(self):
         super(ECA, self).__init__()

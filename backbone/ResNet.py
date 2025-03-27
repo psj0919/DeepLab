@@ -183,9 +183,11 @@ def build_backbone(backbone, output_stride, BatchNorm, pretrained):
 
 if __name__=='__main__':
     import torch
-    model1 = resnet101(BatchNorm=nn.BatchNorm2d, pretrained=True, output_stride=8)
+    model1 = resnet50(BatchNorm=nn.BatchNorm2d, pretrained=True, output_stride=16)
     input = torch.rand(1, 3, 256, 256)
-    out, low = model1(input)
-    from fvcore.nn import FlopCountAnalysis
+    # out, low = model1(input)
+    from fvcore.nn import FlopCountAnalysis, flop_count_table
 
-    flops = FlopCountAnalysis(model1, input)
+    flop = FlopCountAnalysis(model1, input)
+    print(flop.total())
+    print(flop_count_table(flop))

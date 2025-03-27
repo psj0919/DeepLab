@@ -83,7 +83,7 @@ class Trainer():
             pretrain = False
 
         model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
-                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain, deploy=self.cfg['solver']['deploy'])
+                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain)
 
         return model.to(self.device)
 
@@ -357,7 +357,7 @@ class Trainer():
     #     print("Success save_max_prob_mAP")
 
     def save_model(self, save_path):
-        save_file = 'RepVGG_ResNet101_28512.pth'
+        save_file = 'RepVGG_DeepLabV3+_ResNet101_11502.pth'
         path = os.path.join(save_path, save_file)
         model = deepcopy(self.model)
         convert_model = self.model.backbone.repvgg_model_convert()

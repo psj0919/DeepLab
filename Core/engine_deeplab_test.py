@@ -38,8 +38,8 @@ class Trainer():
         self.test_loader = self.get_test_dataloader()
         self.global_step = 0
         self.save_path = self.cfg['model']['save_dir']
-        self.writer = SummaryWriter(log_dir=self.save_path)
-        self.load_weight()
+        # self.writer = SummaryWriter(log_dir=self.save_path)
+        # self.load_weight()
 
     def setup_device(self):
         if self.cfg['args']['gpu_id'] is not None:
@@ -62,10 +62,10 @@ class Trainer():
 
     def setup_network(self):
         pretrain = False
-        model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
-                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain, deploy=self.cfg['solver']['deploy'])
         # model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
-        #                 output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain)
+                        # output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain, deploy=self.cfg['solver']['deploy'])
+        model = DeepLab(num_classes=self.cfg['dataset']['num_class'], backbone=self.cfg['solver']['backbone'],
+                        output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain)
         return model.to(self.device)
 
     def load_weight(self):
@@ -76,10 +76,10 @@ class Trainer():
                 file_path = self.cfg['model']['resume']
                 assert os.path.exists(file_path), f'There is no checkpoints file!'
                 ckpt = torch.load(file_path, map_location=self.device)
-                # resume_state_dict = ckpt['model'].state_dict()
+                resume_state_dict = ckpt['model'].state_dict()
 
-                self.model.load_state_dict(ckpt, strict=True)  # load weights
-                # self.model.load_state_dict(resume_state_dict, strict=True)  # load weights
+                # self.model.load_state_dict(ckpt, strict=True)  # load weights
+                self.model.load_state_dict(resume_state_dict, strict=True)  # load weights
                 print("success weight load!!")
             except:
                 raise

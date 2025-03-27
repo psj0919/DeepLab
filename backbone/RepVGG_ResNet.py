@@ -205,10 +205,11 @@ class RepVGG_ResNet(nn.Module):
         self.in_planes = min(3, int(64 * width_multiplier[0]))
         self.cur_layer_idx = 1
         #ResNet
+        blocks = [1, 2, 4]
         self.block = Bottleneck
         self.BatchNorm = nn.BatchNorm2d
-        self.strides = [1, 2, 1, 1]
-        self.dilations = [1, 1, 2, 4]
+        self.strides = [1, 2, 2, 1]
+        self.dilations = [1, 1, 1, 2]
         self.backbone_model_name = model_name
         #
         self.layer0 = self._make_stage(64, 3, 3, stride=2, padding=1)
@@ -221,13 +222,13 @@ class RepVGG_ResNet(nn.Module):
         self.layer1 = self._make_layer(self.block, 64, self.num_block[0], stride=self.strides[0], dilation=self.dilations[0], BatchNorm=self.BatchNorm)
         self.layer2 = self._make_layer(self.block, 128, self.num_block[1], stride=self.strides[1], dilation=self.dilations[1], BatchNorm=self.BatchNorm)
         self.layer3 = self._make_layer(self.block, 256, self.num_block[2], stride=self.strides[2], dilation=self.dilations[2], BatchNorm=self.BatchNorm)
-        self.layer4 = self._make_MG_unit(self.block, 512, self.num_block[3], stride=self.strides[3], dilation=self.dilations[3], BatchNorm=self.BatchNorm)
+        self.layer4 = self._make_MG_unit(self.block, 512, blocks, stride=self.strides[3], dilation=self.dilations[3], BatchNorm=self.BatchNorm)
         self._load_pretrained_model()
     def _make_stage(self, planes, num_blocks, kernel_size, stride, padding):
         strides = [stride] + [1] *(num_blocks - 1)
         # change channel
         if self.in_planes==3 and planes==64:
-            planes = [64, 64, 64]
+            planes = [6, 18, 64]
 
         blocks = []
         for idx, stride in enumerate(strides):
@@ -266,10 +267,10 @@ class RepVGG_ResNet(nn.Module):
 
         layers = []
         cur_groups = self.override_groups_map.get(self.cur_layer_idx, 1)
-        layers.append(block(self.in_planes, planes, cur_groups, self.deploy, self.use_se, stride=1, dilation=1, downsample=downsample, BatchNorm=BatchNorm))
+        layers.append(block(self.in_planes, planes, cur_groups, self.deploy, self.use_se, stride=1, dilation=blocks[0] * dilation, downsample=downsample, BatchNorm=BatchNorm))
         self.in_planes = planes * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.in_planes, planes, cur_groups, self.deploy, self.use_se, stride=1, dilation=1, BatchNorm=BatchNorm))
+        for i in range(1, len(blocks)):
+            layers.append(block(self.in_planes, planes, cur_groups, self.deploy, self.use_se, stride=1, dilation=blocks[i] * dilation, BatchNorm=BatchNorm))
 
         return nn.Sequential(*layers)
 
@@ -316,8 +317,10 @@ class RepVGG_ResNet(nn.Module):
         else:
             if self.backbone_model_name == 'resnet50':
                 pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-0676ba61.pth')
+                print("ResNet50_weight")
             elif self.backbone_model_name == 'resnet101':
                 pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
+                print("ResNet101_weight")
             #
             state_dict = self.state_dict()
             pretrain_keys = list(pretrain_dict.keys())
@@ -370,5 +373,5 @@ class RepVGG_ResNet(nn.Module):
 if __name__=='__main__':
 
     x = torch.randn(1, 3, 256, 256)
-    my_model = RepVGG_ResNet([3, 4, 6, 3], 'resnet101',21, [1,1,1,1], None, False)
+    my_model = RepVGG_ResNet([3, 4, 6, 3], 'resnet101',21, [1,1,1,1], None, True)
     out, low_level_feature = my_model(x)
