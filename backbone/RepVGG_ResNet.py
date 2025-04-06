@@ -7,6 +7,9 @@ import torch.nn as nn
 from difflib import get_close_matches
 import torch.utils.model_zoo as model_zoo
 from backbone.se_block import SEBlock
+from math import log
+from model.ECA_module import ECA
+
 
 class Bottleneck(nn.Module):
     expansion = 4
@@ -213,22 +216,39 @@ class RepVGG_ResNet(nn.Module):
         self.backbone_model_name = model_name
         #
         self.layer0 = self._make_stage(64, 3, 3, stride=2, padding=1)
-        # self.conv1 = nn.Conv2d(3, 64, 7, 2, 3, bias=False)
-        # self.bn1 = nn.BatchNorm2d(64)
-        # self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         #
         self.in_planes = 64
         self.layer1 = self._make_layer(self.block, 64, self.num_block[0], stride=self.strides[0], dilation=self.dilations[0], BatchNorm=self.BatchNorm)
+        #
+        self.t1 = int (abs((log(256, 2) + 1) / 2))
+        self.k1 = self.t1 if self.t1 % 2 else self.t1 + 1
+        self.eca_module1 = ECA(self.k1)
+        #
         self.layer2 = self._make_layer(self.block, 128, self.num_block[1], stride=self.strides[1], dilation=self.dilations[1], BatchNorm=self.BatchNorm)
+        #
+        # self.t2 = int (abs((log(512, 2) + 1) / 2))
+        # self.k2 = self.t2 if self.t2 % 2 else self.t2 + 1
+        # self.eca_module2 = ECA(self.k2)
+        #
         self.layer3 = self._make_layer(self.block, 256, self.num_block[2], stride=self.strides[2], dilation=self.dilations[2], BatchNorm=self.BatchNorm)
+        #
+        # self.t3 = int (abs((log(1024, 2) + 1) / 2))
+        # self.k3 = self.t3 if self.t3 % 2 else self.t3 + 1
+        # self.eca_module3 = ECA(self.k3)
+        #
         self.layer4 = self._make_MG_unit(self.block, 512, blocks, stride=self.strides[3], dilation=self.dilations[3], BatchNorm=self.BatchNorm)
+        #
+        # self.t4 = int (abs((log(2048, 2) + 1) / 2))
+        # self.k4 = self.t3 if self.t3 % 2 else self.t3 + 1
+        # self.eca_module4 = ECA(self.k4)
+        #
         self._load_pretrained_model()
     def _make_stage(self, planes, num_blocks, kernel_size, stride, padding):
         strides = [stride] + [1] *(num_blocks - 1)
         # change channel
         if self.in_planes==3 and planes==64:
-            planes = [6, 18, 64]
+            planes = [32, 32, 64]
 
         blocks = []
         for idx, stride in enumerate(strides):
@@ -285,14 +305,11 @@ class RepVGG_ResNet(nn.Module):
             else:
                 out = stage(out)
 
-        # out = self.conv1(x)
-        # out = self.bn1(out)
-        # out = self.relu(out)
         out = self.maxpool(out)
 
         out = self.layer1(out)
         low_level_feat = out
-
+        out = self.eca_module1(out)
         out = self.layer2(out)
         out = self.layer3(out)
         out = self.layer4(out)

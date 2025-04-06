@@ -1,8 +1,8 @@
 import math
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
-# from models.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
-from pytorch_lightning.utilities.apply_func import Batch
+from math import log
+from model.ECA_module import ECA
 import time
 
 class Bottleneck(nn.Module):
@@ -60,18 +60,35 @@ class ResNet(nn.Module):
             raise NotImplementedError
 
         # Modules
-        self.conv1 = nn.Conv2d(3, 6, kernel_size=3, stride=2, padding=1, bias=False)
-        self.conv2 = nn.Conv2d(6, 18, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv3 = nn.Conv2d(18, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = BatchNorm(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         self.layer1 = self._make_layer(block, 64, layers[0], stride=strides[0], dilation=dilations[0], BatchNorm=BatchNorm)
+        #
+        self.t1 = int (abs((log(256, 2) + 1) / 2))
+        self.k1 = self.t1 if self.t1 % 2 else self.t1 + 1
+        self.eca_module1 = ECA(self.k1)
+        #
         self.layer2 = self._make_layer(block, 128, layers[1], stride=strides[1], dilation=dilations[1], BatchNorm=BatchNorm)
+        #
+        # self.t2 = int (abs((log(512, 2) + 1) / 2))
+        # self.k2 = self.t2 if self.t2 % 2 else self.t2 + 1
+        # self.eca_module2 = ECA(self.k2)
+        #
         self.layer3 = self._make_layer(block, 256, layers[2], stride=strides[2], dilation=dilations[2], BatchNorm=BatchNorm)
+        #
+        # self.t3 = int (abs((log(1024, 2) + 1) / 2))
+        # self.k3 = self.t3 if self.t3 % 2 else self.t3 + 1
+        # self.eca_module3 = ECA(self.k3)
+        #
         self.layer4 = self._make_MG_unit(block, 512, blocks=blocks, stride=strides[3], dilation=dilations[3], BatchNorm=BatchNorm)
-        # self.layer4 = self._make_layer(block, 512, layers[3], stride=strides[3], dilation=dilations[3], BatchNorm=BatchNorm)
+        #
+        # self.t4 = int (abs((log(2048, 2) + 1) / 2))
+        # self.k4 = self.t3 if self.t3 % 2 else self.t3 + 1
+        # self.eca_module4 = ECA(self.k3)
+        #
         self._init_weight()
 
         if pretrained:
@@ -115,13 +132,12 @@ class ResNet(nn.Module):
 
     def forward(self, input):
         x = self.conv1(input)
-        x = self.conv2(x)
-        x = self.conv3(x)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
         x = self.layer1(x)
         low_level_feat = x
+        x = self.eca_module1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
@@ -140,8 +156,10 @@ class ResNet(nn.Module):
     def _load_pretrained_model(self, layers):
         if layers == [3, 4, 6, 3]:
             pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-0676ba61.pth')
+            print("load_ResNet50_weight")
         elif layers ==[3, 4, 23, 3]:
             pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
+            print("load_ResNet101_weight")
         try:
             model_dict = {}
             state_dict = self.state_dict()
@@ -185,7 +203,7 @@ if __name__=='__main__':
     import torch
     model1 = resnet50(BatchNorm=nn.BatchNorm2d, pretrained=True, output_stride=16)
     input = torch.rand(1, 3, 256, 256)
-    # out, low = model1(input)
+    out, low = model1(input)
     from fvcore.nn import FlopCountAnalysis, flop_count_table
 
     flop = FlopCountAnalysis(model1, input)

@@ -55,8 +55,8 @@ def get_config_dict():
     model = dict(
         resume='',  # weight_file
         mode='train',
-        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/RepVGG_ResNet101_11502',
-        checkpoint='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/RepVGG_ResNet_11502'  # checkpoint_path
+        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/ResNet101_DeepLabV3+_28512_ECA_after_bottleneck1',
+        checkpoint='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/Attention/bottleneck1'  # checkpoint_path
     )
     config = dict(
         args=args,
