@@ -42,7 +42,7 @@ class Trainer():
         self.scheduler = self.setup_scheduler()
         self.global_step = 0
         self.save_path = self.cfg['model']['save_dir']
-        self.writer = SummaryWriter(log_dir=self.save_path)
+        # self.writer = SummaryWriter(log_dir=self.save_path)
         self.load_weight()
 
     def setup_device(self):
@@ -359,7 +359,7 @@ class Trainer():
 
 
     def save_model(self, save_path):
-        save_file = 'ResNet101_DeepLabV3+_28512_ECA_after_bottleneck1.pth'
+        save_file = 'ResNet101_DeepLabV3+_75456_DA_ECA_bottleneck1+bottleneck2.pth'
         path = os.path.join(save_path, save_file)
         model = deepcopy(self.model)
         convert_model = self.model.backbone.repvgg_model_convert()

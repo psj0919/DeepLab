@@ -1,12 +1,9 @@
-import time
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from math import log
 from model.aspp_module import build_aspp
 from model.decoder import build_decoder
 from backbone.ResNet import build_backbone
-from model.ECA_module import ECA
+
 
 class DeepLab(nn.Module):
     def __init__(self, backbone='resnet', output_stride=16, num_classes=21, sync_bn=False, freeze_bn=False, pretrained=False):

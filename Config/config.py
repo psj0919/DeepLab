@@ -32,7 +32,7 @@ def get_config_dict():
         size= (256, 256)
     )
     args = dict(
-        gpu_id='1',
+        gpu_id='0',
         batch_size=8,
         epochs=65,
         num_workers=6,
@@ -55,8 +55,8 @@ def get_config_dict():
     model = dict(
         resume='',  # weight_file
         mode='train',
-        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/ResNet101_DeepLabV3+_28512_ECA_after_bottleneck1',
-        checkpoint='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/Attention/bottleneck1'  # checkpoint_path
+        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/ResNet101_DeepLabV3+_75456_DA_ECA_bottleneck1+bottleneck2',
+        checkpoint='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/Apply_DA(channel)_ECA/bottleneck1+bottleneck2'  # checkpoint_path
     )
     config = dict(
         args=args,

@@ -1,13 +1,14 @@
 import torch
 from torch import nn
-from model.ECA_module import ECA
+from attention_module.ECA_module import ECA
 
 
 
 class DA_ECA(nn.Module):
-    def __init__(self):
+    def __init__(self, k):
         super(DA_ECA, self).__init__()
-        self.eca = ECA()
+        self.k = k
+        self.eca = ECA(self.k)
         self.gamma = nn.Parameter(torch.zeros(1))
         self.softmax = nn.Softmax(dim=1)
 

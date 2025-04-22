@@ -2,8 +2,8 @@ import math
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 from math import log
-from model.ECA_module import ECA
-import time
+from attention_module.ECA_module import ECA
+
 
 class Bottleneck(nn.Module):
     expansion = 4
@@ -73,9 +73,9 @@ class ResNet(nn.Module):
         #
         self.layer2 = self._make_layer(block, 128, layers[1], stride=strides[1], dilation=dilations[1], BatchNorm=BatchNorm)
         #
-        # self.t2 = int (abs((log(512, 2) + 1) / 2))
-        # self.k2 = self.t2 if self.t2 % 2 else self.t2 + 1
-        # self.eca_module2 = ECA(self.k2)
+        self.t2 = int (abs((log(512, 2) + 1) / 2))
+        self.k2 = self.t2 if self.t2 % 2 else self.t2 + 1
+        self.eca_module2 = ECA(self.k2)
         #
         self.layer3 = self._make_layer(block, 256, layers[2], stride=strides[2], dilation=dilations[2], BatchNorm=BatchNorm)
         #
