@@ -120,3 +120,4 @@ class RGB_HVI(nn.Module):
         if self.gated2:
             rgb = rgb * self.alpha
         return rgb
+

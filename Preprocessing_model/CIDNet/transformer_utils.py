@@ -24,7 +24,6 @@ class LayerNorm(nn.Module):
             x = self.weight[:, None, None] * x + self.bias[:, None, None]
             return x
 
-
 class NormDownsample(nn.Module):
     def __init__(self, in_ch, out_ch, scale=0.5, use_norm=False):
         super(NormDownsample, self).__init__()

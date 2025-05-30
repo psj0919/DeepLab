@@ -140,6 +140,7 @@ def transform(img):
 
     return img
 
+
 if __name__ == '__main__':
     model = CIDNet()
     path = '/storage/sjpark/vehicle_data/Pretrained_CIDNet/SICE.pth'

@@ -3,7 +3,6 @@ import torch.nn as nn
 from einops import rearrange
 from Preprocessing_model.CIDNet.transformer_utils import *
 
-
 # Cross Attention Block
 class CAB(nn.Module):
     def __init__(self, dim, num_heads, bias):
