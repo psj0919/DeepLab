@@ -1,12 +1,13 @@
-import torch.nn as nn
 import numpy as np
 import torch
 import copy
-import math
 import torch.nn as nn
-from difflib import get_close_matches
 import torch.utils.model_zoo as model_zoo
 from backbone.se_block import SEBlock
+from math import log
+# from model.ECA_module import ECA
+from attention_module.DA_ECA_module import DA_ECA
+
 
 class Bottleneck(nn.Module):
     expansion = 4
@@ -205,23 +206,41 @@ class RepVGG_ResNet(nn.Module):
         self.in_planes = min(3, int(64 * width_multiplier[0]))
         self.cur_layer_idx = 1
         #ResNet
+        blocks = [1, 2, 4]
         self.block = Bottleneck
         self.BatchNorm = nn.BatchNorm2d
-        self.strides = [1, 2, 1, 1]
-        self.dilations = [1, 1, 2, 4]
+        self.strides = [1, 2, 2, 1]
+        self.dilations = [1, 1, 1, 2]
         self.backbone_model_name = model_name
         #
         self.layer0 = self._make_stage(64, 3, 3, stride=2, padding=1)
-        # self.conv1 = nn.Conv2d(3, 64, 7, 2, 3, bias=False)
-        # self.bn1 = nn.BatchNorm2d(64)
-        # self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         #
         self.in_planes = 64
         self.layer1 = self._make_layer(self.block, 64, self.num_block[0], stride=self.strides[0], dilation=self.dilations[0], BatchNorm=self.BatchNorm)
+        #
+        self.t1 = int (abs((log(256, 2) + 1) / 2))
+        self.k1 = self.t1 if self.t1 % 2 else self.t1 + 1
+        self.da_eca_module1 = DA_ECA(self.k1)
+        #
         self.layer2 = self._make_layer(self.block, 128, self.num_block[1], stride=self.strides[1], dilation=self.dilations[1], BatchNorm=self.BatchNorm)
+        #
+        self.t2 = int (abs((log(512, 2) + 1) / 2))
+        self.k2 = self.t2 if self.t2 % 2 else self.t2 + 1
+        self.da_eca_module2 = DA_ECA(self.k2)
+        #
         self.layer3 = self._make_layer(self.block, 256, self.num_block[2], stride=self.strides[2], dilation=self.dilations[2], BatchNorm=self.BatchNorm)
-        self.layer4 = self._make_MG_unit(self.block, 512, self.num_block[3], stride=self.strides[3], dilation=self.dilations[3], BatchNorm=self.BatchNorm)
+        #
+        # self.t3 = int (abs((log(1024, 2) + 1) / 2))
+        # self.k3 = self.t3 if self.t3 % 2 else self.t3 + 1
+        # self.eca_module3 = ECA(self.k3)
+        #
+        self.layer4 = self._make_MG_unit(self.block, 512, blocks, stride=self.strides[3], dilation=self.dilations[3], BatchNorm=self.BatchNorm)
+        #
+        # self.t4 = int (abs((log(2048, 2) + 1) / 2))
+        # self.k4 = self.t4 if self.t4 % 2 else self.t4 + 1
+        # self.eca_module4 = ECA(self.k4)
+        #
         self._load_pretrained_model()
     def _make_stage(self, planes, num_blocks, kernel_size, stride, padding):
         strides = [stride] + [1] *(num_blocks - 1)
@@ -266,10 +285,10 @@ class RepVGG_ResNet(nn.Module):
 
         layers = []
         cur_groups = self.override_groups_map.get(self.cur_layer_idx, 1)
-        layers.append(block(self.in_planes, planes, cur_groups, self.deploy, self.use_se, stride=1, dilation=1, downsample=downsample, BatchNorm=BatchNorm))
+        layers.append(block(self.in_planes, planes, cur_groups, self.deploy, self.use_se, stride=1, dilation=blocks[0] * dilation, downsample=downsample, BatchNorm=BatchNorm))
         self.in_planes = planes * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.in_planes, planes, cur_groups, self.deploy, self.use_se, stride=1, dilation=1, BatchNorm=BatchNorm))
+        for i in range(1, len(blocks)):
+            layers.append(block(self.in_planes, planes, cur_groups, self.deploy, self.use_se, stride=1, dilation=blocks[i] * dilation, BatchNorm=BatchNorm))
 
         return nn.Sequential(*layers)
 
@@ -284,15 +303,13 @@ class RepVGG_ResNet(nn.Module):
             else:
                 out = stage(out)
 
-        # out = self.conv1(x)
-        # out = self.bn1(out)
-        # out = self.relu(out)
         out = self.maxpool(out)
 
         out = self.layer1(out)
         low_level_feat = out
-
+        out = self.da_eca_module1(out)
         out = self.layer2(out)
+        out = self.da_eca_module2(out)
         out = self.layer3(out)
         out = self.layer4(out)
         return out, low_level_feat
@@ -316,8 +333,10 @@ class RepVGG_ResNet(nn.Module):
         else:
             if self.backbone_model_name == 'resnet50':
                 pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-0676ba61.pth')
+                print("ResNet50_weight")
             elif self.backbone_model_name == 'resnet101':
                 pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
+                print("ResNet101_weight")
             #
             state_dict = self.state_dict()
             pretrain_keys = list(pretrain_dict.keys())
@@ -370,5 +389,5 @@ class RepVGG_ResNet(nn.Module):
 if __name__=='__main__':
 
     x = torch.randn(1, 3, 256, 256)
-    my_model = RepVGG_ResNet([3, 4, 6, 3], 'resnet101',21, [1,1,1,1], None, False)
+    my_model = RepVGG_ResNet([3, 4, 6, 3], 'resnet101',21, [1,1,1,1], None, True)
     out, low_level_feature = my_model(x)

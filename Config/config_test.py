@@ -32,7 +32,7 @@ def get_test_config_dict():
         size= (256, 256)
     )
     args = dict(
-        gpu_id='0',
+        gpu_id='1',
         num_workers=6,
         network_name='DeepLabV3+'
     )
@@ -42,7 +42,7 @@ def get_test_config_dict():
         deploy=True
     )
     model = dict(
-        resume='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/RepVGG_ResNet_75456/RepVGG_ResNet101_75456.pth',  # weight_file
+        resume='',  # weight_file
         mode='test',
         save_dir='/storage/sjpark/vehicle_data/runs/deeplab/test/256',   # runs_file
     )

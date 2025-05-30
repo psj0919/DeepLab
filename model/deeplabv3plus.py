@@ -1,5 +1,3 @@
-import time
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from model.aspp_module import build_aspp
@@ -12,11 +10,15 @@ class DeepLab(nn.Module):
         super(DeepLab, self).__init__()
         if backbone == 'drn':
             output_stride = 8
+
         BatchNorm = nn.BatchNorm2d
         self.pretrained = pretrained
         self.backbone = build_backbone(backbone, output_stride, BatchNorm, self.pretrained)
         self.aspp = build_aspp(backbone, output_stride, BatchNorm)
         self.decoder = build_decoder(num_classes, backbone, BatchNorm)
+        # self.t = int (abs((log(2048, 2) + 1) / 2))
+        # self.k = self.t if self.t % 2 else self.t + 1
+        # self.eca_module = ECA(self.k)
 
         if freeze_bn:
             self.freeze_bn()
@@ -24,13 +26,11 @@ class DeepLab(nn.Module):
     def forward(self, input):
 
         x, low_level_feature = self.backbone(input)
-
+        #
+        # x = self.eca_module(x)
+        #
         x = self.aspp(x)
-
-
         x = self.decoder(x, low_level_feature)
-
-
         x = F.interpolate(x, size=input.size()[2:], mode='bilinear', align_corners=True)
 
         return x

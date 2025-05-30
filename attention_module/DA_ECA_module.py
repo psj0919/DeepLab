@@ -1,12 +1,17 @@
 import torch
 from torch import nn
-from model.ECA_module import ECA
+from attention_module.ECA_module import ECA
+
+
+
 class DA_ECA(nn.Module):
-    def __init__(self):
-        super(DA_ECA).__init__()
-        self.eca = ECA()
+    def __init__(self, k):
+        super(DA_ECA, self).__init__()
+        self.k = k
+        self.eca = ECA(self.k)
         self.gamma = nn.Parameter(torch.zeros(1))
         self.softmax = nn.Softmax(dim=1)
+
     def forward(self, x):
         batch_size, channel, width, height = x.shape
         #
@@ -22,9 +27,9 @@ class DA_ECA(nn.Module):
         out = out.view(batch_size, channel, height, width)
 
         out = self.gamma * out + x
-
+        return out
 
 if __name__=='__main__':
     x = torch.randn(1, 3, 256, 256)
-    ECA = ECA()
-    out = ECA(x)
+    DA_ECA = DA_ECA()
+    out = DA_ECA(x)
