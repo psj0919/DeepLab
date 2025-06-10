@@ -1,12 +1,12 @@
 def dataset_info(dataset_name='vehicledata'):
     if dataset_name == 'vehicledata':
-        train_path = "/storage/sjpark/vehicle_data/Dataset/train_image/"
-        ann_path = "/storage/sjpark/vehicle_data/Dataset/ann_train/"
-        val_path = '/storage/sjpark/vehicle_data/Dataset/val_image/'
-        val_ann_path = '/storage/sjpark/vehicle_data/Dataset/ann_val/'
-        test_path = '/storage/sjpark/vehicle_data/Dataset/test_image/'
-        test_ann_path = '/storage/sjpark/vehicle_data/Dataset/ann_test/'
-        json_file = '/storage/sjpark/vehicle_data/Dataset/json_file/'
+        train_path = "/storage/sjpark/vehicle_data/Dataset3/train_image/"
+        ann_path = "/storage/sjpark/vehicle_data/Dataset3/ann_train/"
+        val_path = '/storage/sjpark/vehicle_data/Dataset3/val_image/'
+        val_ann_path = '/storage/sjpark/vehicle_data/Dataset3/ann_val/'
+        test_path = '/storage/sjpark/vehicle_data/Dataset3/test_image/'
+        test_ann_path = '/storage/sjpark/vehicle_data/Dataset3/ann_test/'
+        json_file = '/storage/sjpark/vehicle_data/Dataset3/json_file/'
         num_class = 21
     else:
         raise NotImplementedError("Not Implemented dataset name")
@@ -32,12 +32,12 @@ def get_test_config_dict():
         size= (256, 256)
     )
     args = dict(
-        gpu_id='1',
+        gpu_id='0',
         num_workers=6,
         network_name='DeepLabV3+'
     )
     solver = dict(
-        backbone = 'resnet101',
+        backbone = 'resnet50',
         output_stride=16,
         deploy=True
     )
