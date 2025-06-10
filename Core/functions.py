@@ -127,8 +127,9 @@ def pred_to_class_rgb(pred, cls):
 
 def matplotlib_imshow(img):
     assert len(img.shape) == 3
-    npimg = img.numpy()
-    return (np.transpose(npimg, (1, 2, 0))[:, :, ::-1] * 255).astype(np.uint8)
+    img = img.detach().numpy()
+    # npimg = img.numpy()
+    return (np.transpose(img, (1, 2, 0))[:, :, ::-1] * 255).astype(np.uint8)
 
 #------------------------------------------------------------------------------------------------------------------------#
 
@@ -616,14 +617,3 @@ def class_per_histogram(acc, iou, precision, recall):
     #     plt.savefig('/storage/sjpark/vehicle_data/histogram/FCN/FCN8s/512/{}/{}'.format(cls[i], cls[i] + '_Recall'))
     #     plt.close()
     #     recalls.clear()
-
-
-
-
-
-
-
-
-
-
-
