@@ -1,12 +1,12 @@
 def dataset_info(dataset_name='vehicledata'):
     if dataset_name == 'vehicledata':
-        train_path = "/storage/sjpark/vehicle_data/Dataset/train_image/"
-        ann_path = "/storage/sjpark/vehicle_data/Dataset/ann_train/"
-        val_path = '/storage/sjpark/vehicle_data/Dataset/val_image/'
-        val_ann_path = '/storage/sjpark/vehicle_data/Dataset/ann_val/'
-        test_path = '/storage/sjpark/vehicle_data/Dataset/test_image/'
-        test_ann_path = '/storage/sjpark/vehicle_data/Dataset/ann_test/'
-        json_file = '/storage/sjpark/vehicle_data/Dataset/json_file/'
+        train_path = "/storage/sjpark/vehicle_data/Dataset3/train_image/"
+        ann_path = "/storage/sjpark/vehicle_data/Dataset3/ann_train/"
+        val_path = '/storage/sjpark/vehicle_data/Dataset3/val_image/'
+        val_ann_path = '/storage/sjpark/vehicle_data/Dataset3/ann_val/'
+        test_path = '/storage/sjpark/vehicle_data/Dataset3/test_image/'
+        test_ann_path = '/storage/sjpark/vehicle_data/Dataset3/ann_test/'
+        json_file = '/storage/sjpark/vehicle_data/Dataset3/json_file/'
         num_class = 21
     else:
         raise NotImplementedError("Not Implemented dataset name")
@@ -39,7 +39,7 @@ def get_config_dict():
         network_name='DeepLabV3+'
     )
     solver = dict(
-        backbone = 'resnet101',
+        backbone = 'resnet50',
         output_stride = 16,
         optimizer="adam",
         scheduler='cycliclr',
@@ -53,10 +53,10 @@ def get_config_dict():
     )
 
     model = dict(
-        resume='',  # weight_file
+        resume='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/Apply_DA(channel)_ECA/bottleneck1+bottleneck2+bottleneck3/Not_convert_ResNet50_DeepLabV3+_75456_DA_ECA_bottleneck1+2+3.pth',  # weight_file
         mode='train',
-        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/ResNet101_DeepLabV3+_75456_DA_ECA_bottleneck1+bottleneck2',
-        checkpoint='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/256/Apply_DA(channel)_ECA/bottleneck1+bottleneck2'  # checkpoint_path
+        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/ResNet50_DA_ECA_b123_Normalize+clahe',
+        checkpoint='/storage/sjpark/vehicle_data/checkpoints/night_dataloader/'  # checkpoint_path
     )
     config = dict(
         args=args,
