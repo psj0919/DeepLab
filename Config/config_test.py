@@ -42,7 +42,7 @@ def get_test_config_dict():
         deploy=True
     )
     model = dict(
-        resume='',  # weight_file
+        resume='/storage/sjpark/vehicle_data/checkpoints/night_dataloader/cidnet/ResNet50_DA_ECA_b123_cidnet.pth',  # weight_file
         mode='test',
         save_dir='/storage/sjpark/vehicle_data/runs/deeplab/test/256',   # runs_file
     )

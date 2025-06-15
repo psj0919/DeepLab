@@ -17,6 +17,7 @@ from torchvision.utils import make_grid
 import torch.nn.functional as F
 from model.RepVGG_ResNet_deeplabv3plus import *
 from backbone.ResNet import build_backbone
+from dataset.gamma_correction import *
 
 
 
@@ -35,6 +36,8 @@ class Trainer():
         self.cfg = cfg
         self.device = self.setup_device()
         self.model = self.setup_network()
+        # self.preprocessing = self.get_gamma_correction()
+        # self.optimizer, self.preprocessing_optimizer = self.setup_optimizer()
         self.optimizer = self.setup_optimizer()
         self.train_loader = self.get_dataloader()
         self.val_loader = self.get_val_dataloader()
@@ -42,8 +45,9 @@ class Trainer():
         self.scheduler = self.setup_scheduler()
         self.global_step = 0
         self.save_path = self.cfg['model']['save_dir']
-        # self.writer = SummaryWriter(log_dir=self.save_path)
+        self.writer = SummaryWriter(log_dir=self.save_path)
         self.load_weight()
+
 
     def setup_device(self):
         if self.cfg['args']['gpu_id'] is not None:
@@ -87,6 +91,10 @@ class Trainer():
 
         return model.to(self.device)
 
+    def get_gamma_correction(self):
+        model = gamma_correction()
+        return model.to(self.device)
+
     def setup_optimizer(self):
         if self.cfg['solver']['optimizer'] == "sgd":
             optimizer = torch.optim.SGD(params=self.model.parameters(), lr=self.cfg['solver']['lr'],
@@ -94,10 +102,13 @@ class Trainer():
         elif self.cfg['solver']['optimizer'] == "adam":
             optimizer = torch.optim.Adam(params=self.model.parameters(), lr=self.cfg['solver']['lr'],
                                          weight_decay=self.cfg['solver']['weight_decay'])
+            # preprocessing_optimizer = torch.optim.Adam(params=self.preprocessing.parameters(), lr=self.cfg['solver']['lr'],
+            #                              weight_decay=self.cfg['solver']['weight_decay'])
         else:
             raise NotImplementedError("Not Implemented {}".format(self.cfg['solver']['optimizer']))
 
         return optimizer
+        # return optimizer, preprocessing_optimizer
 
     def setup_scheduler(self):
         if self.cfg['solver']['scheduler'] == 'steplr':
@@ -125,18 +136,16 @@ class Trainer():
         return loss
 
     def load_weight(self):
-        if self.cfg['model']['mode'] == 'train':
-            pass
-        elif self.cfg['model']['mode'] == 'test':
-            file_path = self.cfg['model']['resume']
-            assert os.path.exists(file_path), f'There is no checkpoints file!'
-            print("Loading saved weighted {}".format(file_path))
-            ckpt = torch.load(file_path, map_location=self.device)
-            # resume_state_dict = ckpt['model'].state_dict()
+        file_path = self.cfg['model']['resume']
+        assert os.path.exists(file_path), f'There is no checkpoints file!'
+        print("Loading saved weighted {}".format(file_path))
+        ckpt = torch.load(file_path, map_location=self.device)
+        resume_state_dict = ckpt['model'].state_dict()
+        try:
+            self.model.load_state_dict(resume_state_dict, strict=True)  # load weights
+        except:
+            print("Not load_weight")
 
-            self.model.load_state_dict(ckpt, strict=True)  # load weights
-        else:
-            raise NotImplementedError("Not Implemented {}".format(self.cfg['dataset']['mode']))
 
     def training(self):
         print("start training_model_{}".format(self.cfg['args']['network_name']))
@@ -199,13 +208,16 @@ class Trainer():
                 label = label.to(self.device)
                 label = label.type(torch.long)
                 #
+                # data, gamma = self.preprocessing(data)
                 out = self.model(data)
                 #
                 loss = self.loss(out, label)
 
                 self.optimizer.zero_grad()
+                # self.preprocessing_optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                # self.preprocessing_optimizer.step()
 
                 if self.global_step % self.cfg['solver']['print_freq'] == 0:
                     self.writer.add_scalar(tag='train/loss', scalar_value=loss, global_step=self.global_step)
@@ -227,6 +239,7 @@ class Trainer():
 
     def validation(self):
         self.model.eval()
+        # self.preprocessing.eval()
         total_ious = {}
         total_accs = {}
         avr_precision = {}
@@ -247,6 +260,7 @@ class Trainer():
             data = data.to(self.device)
             target = target.to(self.device)
             label = label.to(self.device)
+            # data, gamma = self.preprocessing(data)
 
             logits = self.model(data)
             pred = logits.softmax(dim=1).argmax(dim=1).to('cpu')
@@ -356,14 +370,19 @@ class Trainer():
     #     torch.save({'model': deepcopy(self.model)}, path)
     #     print("Success save_max_prob_mAP")
 
-
-
     def save_model(self, save_path):
-        save_file = 'ResNet101_DeepLabV3+_75456_DA_ECA_bottleneck1+bottleneck2.pth'
+        save_file = 'ResNet50_DA_ECA_b123_normalize+clahe.pth'
+        # save_file_preprocessing = 'gamma_correction_sj'
+
         path = os.path.join(save_path, save_file)
+        # path2 = os.path.join(save_path, save_file_preprocessing)
+
         model = deepcopy(self.model)
+        # preprocessing = deepcopy(self.preprocessing)
+
         convert_model = self.model.backbone.repvgg_model_convert()
         model.backbone = convert_model
 
         torch.save(model.state_dict(), path)
+        # torch.save(preprocessing.state_dict(), path2)
         print("Success save_max_prob_mAP")

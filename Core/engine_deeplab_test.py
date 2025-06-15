@@ -19,7 +19,9 @@ from backbone.ResNet import build_backbone
 from distutils.version import LooseVersion
 from torchvision.utils import make_grid
 import torch.nn.functional as F
-
+from Preprocessing_model.retinexformer import *
+from Preprocessing_model.CIDNet.CIDNet import *
+from dataset.gamma_correction import *
 
 except_classes = ['motorcycle', 'bicycle', 'twowheeler', 'pedestrian', 'rider', 'sidewalk', 'crosswalk', 'speedbump', 'redlane', 'stoplane', 'trafficlight']
 
@@ -35,10 +37,13 @@ class Trainer():
         self.cfg = cfg
         self.device = self.setup_device()
         self.model = self.setup_network()
+        # self.preprocessing_model = self.get_gamma_correction()
+        self.preprocessing_model = self.get_cldnet()
         self.test_loader = self.get_test_dataloader()
         self.global_step = 0
         self.save_path = self.cfg['model']['save_dir']
         self.writer = SummaryWriter(log_dir=self.save_path)
+
         self.load_weight()
 
     def setup_device(self):
@@ -68,6 +73,42 @@ class Trainer():
         #                 output_stride=self.cfg['solver']['output_stride'], sync_bn=False, freeze_bn=False, pretrained=pretrain)
         return model.to(self.device)
 
+    def get_gamma_correction(self):
+        model = gamma_correction()
+
+        path = '/storage/sjpark/vehicle_data/checkpoints/night_dataloader/gamma_correction_sj2/gamma_correction_sj2'
+        ckpt = torch.load(path)
+        try:
+            model.load_state_dict(ckpt, strict=True)
+            print("success Preprocessing Model load weight")
+        except:
+            print("Error")
+        return model.to(self.device)
+
+    def get_retinexformer(self):
+        model = RetinexFormer(stage=1, n_feat=40, num_blocks=[1, 2, 2])
+        path = '/storage/sjpark/vehicle_data/checkpoints/night_dataloader/retinexformer/retinexformer.pth'
+        ckpt = torch.load(path, map_location=self.device)
+        try:
+            model.load_state_dict(ckpt, strict=True)
+            print("success Preprocessing Model load weight")
+        except:
+            print("Error")
+
+        return model.to(self.device)
+
+    def get_cldnet(self):
+        model = CIDNet()
+        path = '/storage/sjpark/vehicle_data/checkpoints/night_dataloader/cidnet/CIDNet.pth'
+        ckpt = torch.load(path, map_location='cpu')
+        try:
+            model.load_state_dict(ckpt, strict=True)
+            print("success load weight")
+        except:
+            print("Not load_weight")
+        return model.to(self.device)
+
+
     def load_weight(self):
         if self.cfg['model']['mode'] == 'train':
             pass
@@ -89,6 +130,7 @@ class Trainer():
 
     def test(self):
         self.model.eval()
+        self.preprocessing_model.eval()
         print("start testing_model_{}".format(self.cfg['args']['network_name']))
         cls_count = []
         total_avr_acc = {}
@@ -117,6 +159,7 @@ class Trainer():
             end_event = torch.cuda.Event(enable_timing=True)
             with torch.no_grad():
                 start_event.record()
+                data = self.preprocessing_model(data)
                 logits = self.model(data)
                 end_event.record()
             torch.cuda.synchronize()
@@ -244,11 +287,11 @@ class Trainer():
         #
         for key, val in total_avr_precision.items():
             for key2, val2 in val.items():
-                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/new_dataloader/DA(channel)_ECA/After_backbone/RepVGG_DeepLabV3+_ResNet101_75456/256/precision/{}/{}_{}.txt".format(key, key, key2)
+                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/Night_dataloder/cidnet/train/256/precision/{}/{}_{}.txt".format(key, key, key2)
                 np.savetxt(path, total_avr_precision[key][key2], fmt= '%f')
 
         for key, val in total_avr_recall.items():
             for key2, val2 in val.items():
-                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/new_dataloader/DA(channel)_ECA/After_backbone/RepVGG_DeepLabV3+_ResNet101_75456/256/recall/{}/{}_{}.txt".format(key, key, key2)
+                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/Night_dataloder/cidnet/train/256/recall/{}/{}_{}.txt".format(key, key, key2)
                 np.savetxt(path, total_avr_recall[key][key2], fmt='%f')
 

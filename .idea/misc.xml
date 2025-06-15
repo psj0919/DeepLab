@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="work_yolov6" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="work_yolov6" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="$USER_HOME$/anaconda3" project-jdk-type="Python SDK" />
 </project>

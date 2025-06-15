@@ -81,6 +81,8 @@ def retinex_MSR(img, sigma_list= [5, 15, 30]):
 
 
 def gammacorrection(img, gamma=0.5):
+    # if Night Dataset used set gamma=2.0
+    # if weekly Dataset used set gamma=0.5
     table = np.array([((i / 255.0) ** gamma) * 255 for i in np.arange(256)]).astype("uint8")
     return cv2.LUT(img, table)
 
@@ -138,14 +140,14 @@ class vehicledata():
     def transform(self, img, label):
         img = img[:, :, ::-1]  # RGB -> BGR
 
-        img = clahe(img)
+        # img = histogram_equal(img)
 
         img = img.astype(np.float64)
         img = img.transpose(2, 0, 1)
         img = torch.from_numpy(img).float() / 255.0    # when image is into network -> image pixel value is between 0 and 1
         label = torch.from_numpy(label).float()
-        normalize = Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        img = normalize(img)
+        # normalize = Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        # img = normalize(img)
 
         return img, label
 
