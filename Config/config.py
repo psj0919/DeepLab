@@ -53,9 +53,9 @@ def get_config_dict():
     )
 
     model = dict(
-        resume='/storage/sjpark/vehicle_data/checkpoints/night_dataloader/cidnet/ResNet50_DA_ECA_b123_cidnet.pth',  # weight_file
-        mode='test',
-        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/ResNet50_DA_ECA_b123_Normalize+clahe',
+        resume='',  # weight_file
+        mode='train',
+        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/train/256/ResNet50_UperNet',
         checkpoint='/storage/sjpark/vehicle_data/checkpoints/night_dataloader/'  # checkpoint_path
     )
     config = dict(

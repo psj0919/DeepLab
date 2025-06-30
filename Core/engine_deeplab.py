@@ -46,7 +46,7 @@ class Trainer():
         self.global_step = 0
         self.save_path = self.cfg['model']['save_dir']
         self.writer = SummaryWriter(log_dir=self.save_path)
-        self.load_weight()
+        # self.load_weight()
 
 
     def setup_device(self):

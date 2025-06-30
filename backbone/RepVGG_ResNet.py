@@ -303,15 +303,25 @@ class RepVGG_ResNet(nn.Module):
 
         out = self.maxpool(out)
 
-        out = self.layer1(out)
-        low_level_feat = out
-        out = self.da_eca_module1(out)
-        out = self.layer2(out)
-        out = self.da_eca_module2(out)
-        out = self.layer3(out)
-        out = self.da_eca_module3(out)
-        out = self.layer4(out)
-        return out, low_level_feat
+        # out = self.layer1(out)
+        # low_level_feat = out
+        # # out = self.da_eca_module1(out)
+        # out = self.layer2(out)
+        # # out = self.da_eca_module2(out)
+        # out = self.layer3(out)
+        # # out = self.da_eca_module3(out)
+        # out = self.layer4(out)
+        #
+        # return out, low_level_feat
+
+        # Use UperNet
+        c2 = self.layer1(out)
+        c3 = self.layer2(c2)
+        c4 = self.layer3(c3)
+        c5 = self.layer4(c4)
+
+        return [c2, c3, c4, c5]
+
 
     def repvgg_model_convert(model:torch.nn.Module, save_path=None, do_copy=True):
         if do_copy:
