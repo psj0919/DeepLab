@@ -59,39 +59,6 @@ if __name__ == '__main__':
     #
     img_CV = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     #
-    clahe_result = clahe(img_CV)
+
     #
-    histogram_equal_result = histogram_equal(img_CV)
-    #
-    retinx_result = retinx(img)
-    #
-    gamma_reuslt = gammacorrection(img, gamma=0.5)
-    # RGB
-    # plt.imshow(orig_img)
-    # img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
-    # img = img[:,:,0]
-    # plt.hist(img.ravel(), bins=256, range=(0, 256), color='gray', density=True)
-    # #
-    # plt.imshow(cv2.cvtColor(clahe_result, cv2.COLOR_BGR2RGB))
-    # clahe_result = cv2.cvtColor(clahe_result, cv2.COLOR_BGR2RGB)
-    # img2 = cv2.cvtColor(clahe_result, cv2.COLOR_RGB2YCrCb)
-    # img2 = img2[:,:,0]
-    # plt.hist(img2.ravel(), bins=256, range=(0, 256), color='gray', density=True)
-    # #
-    # plt.imshow(cv2.cvtColor(histogram_equal_result, cv2.COLOR_BGR2RGB))
-    # histogram_equal_result = cv2.cvtColor(histogram_equal_result, cv2.COLOR_BGR2RGB)
-    # img = cv2.cvtColor(histogram_equal_result, cv2.COLOR_RGB2YCrCb)
-    # img = img[:,:,0]
-    # plt.hist(img.ravel(), bins=256, range=(0, 256), color='gray', density=True)
-    #
-    plt.imshow(retinx_result)
-    retinx_result = cv2.cvtColor(retinx_result, cv2.COLOR_BGR2RGB)
-    img = cv2.cvtColor(retinx_result, cv2.COLOR_RGB2YCrCb)
-    img = img[:,:,0]
-    plt.hist(img.ravel(), bins=256, range=(0, 256), color='gray', density=True)
-    #
-    plt.imshow(gamma_reuslt)
-    gamma_reuslt = cv2.cvtColor(gamma_reuslt, cv2.COLOR_BGR2RGB)
-    img = cv2.cvtColor(gamma_reuslt, cv2.COLOR_RGB2YCrCb)
-    img = img[:,:,0]
-    plt.hist(img.ravel(), bins=256, range=(0, 256), color='gray', density=True)
+

@@ -15,7 +15,9 @@ import matplotlib.pyplot as plt
 from distutils.version import LooseVersion
 from torchvision.utils import make_grid
 import torch.nn.functional as F
-from model.RepVGG_ResNet_deeplabv3plus import *
+from model.RepVGG_DA_ECA_ResNet_deeplabv3plus import *
+# from model.RepVGG_ResNet_deeplabv3plus import *
+
 from backbone.ResNet import build_backbone
 from dataset.gamma_correction import *
 
@@ -371,15 +373,9 @@ class Trainer():
     #     print("Success save_max_prob_mAP")
 
     def save_model(self, save_path):
-        save_file = 'ResNet50_DA_ECA_b123_normalize+clahe.pth'
-        # save_file_preprocessing = 'gamma_correction_sj'
-
+        save_file = '512_RepBlock_ResNet50_DeepLabV3+_DA_ECA_b123.pth'
         path = os.path.join(save_path, save_file)
-        # path2 = os.path.join(save_path, save_file_preprocessing)
-
         model = deepcopy(self.model)
-        # preprocessing = deepcopy(self.preprocessing)
-
         convert_model = self.model.backbone.repvgg_model_convert()
         model.backbone = convert_model
 

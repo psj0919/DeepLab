@@ -413,7 +413,7 @@ def pred_to_rgb(pred):
 
 if __name__ == '__main__':
     model = RetinexFormer(stage=1,n_feat=40,num_blocks=[1,2,2])
-    path = '/storage/sjpark/vehicle_data/pretrained_retinexformer/SID.pth'
+    path = '/storage/sjpark/vehicle_data/pretrained_retinexformer/SDSD_outdoor.pth'
     ckpt = torch.load(path)
     model.load_state_dict(ckpt['params'], strict=True)
 

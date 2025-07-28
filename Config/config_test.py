@@ -1,12 +1,12 @@
 def dataset_info(dataset_name='vehicledata'):
     if dataset_name == 'vehicledata':
-        train_path = "/storage/sjpark/vehicle_data/Dataset3/train_image/"
-        ann_path = "/storage/sjpark/vehicle_data/Dataset3/ann_train/"
-        val_path = '/storage/sjpark/vehicle_data/Dataset3/val_image/'
-        val_ann_path = '/storage/sjpark/vehicle_data/Dataset3/ann_val/'
-        test_path = '/storage/sjpark/vehicle_data/Dataset3/test_image/'
-        test_ann_path = '/storage/sjpark/vehicle_data/Dataset3/ann_test/'
-        json_file = '/storage/sjpark/vehicle_data/Dataset3/json_file/'
+        train_path = "/storage/sjpark/vehicle_data/Dataset/train_image/"
+        ann_path = "/storage/sjpark/vehicle_data/Dataset/ann_train/"
+        val_path = '/storage/sjpark/vehicle_data/Dataset/val_image/'
+        val_ann_path = '/storage/sjpark/vehicle_data/Dataset/ann_val/'
+        test_path = '/storage/sjpark/vehicle_data/Dataset/test_image/'
+        test_ann_path = '/storage/sjpark/vehicle_data/Dataset/ann_test/'
+        json_file = '/storage/sjpark/vehicle_data/Dataset/json_file/'
         num_class = 21
     else:
         raise NotImplementedError("Not Implemented dataset name")
@@ -28,8 +28,8 @@ def get_test_config_dict():
         test_path=test_path,
         test_ann_path=test_ann_path,
         num_class=num_class,
-        image_size = 256,
-        size= (256, 256)
+        image_size = 512,
+        size= (512, 512)
     )
     args = dict(
         gpu_id='0',
@@ -42,9 +42,9 @@ def get_test_config_dict():
         deploy=True
     )
     model = dict(
-        resume='/storage/sjpark/vehicle_data/checkpoints/night_dataloader/cidnet/ResNet50_DA_ECA_b123_cidnet.pth',  # weight_file
+        resume='/storage/sjpark/vehicle_data/checkpoints/new_dataloader/DeepLab/512/RepBlock_DeepLabV3+_ResNet50/512_RepBlock_ResNet50_DeepLabV3+.pth',  # weight_file
         mode='test',
-        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/test/256',   # runs_file
+        save_dir='/storage/sjpark/vehicle_data/runs/deeplab/test/512',   # runs_file
     )
     config = dict(
         args=args,

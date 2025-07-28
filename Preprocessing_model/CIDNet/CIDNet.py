@@ -5,10 +5,18 @@ import cv2
 import numpy as np
 
 from PIL import Image
+from matplotlib import pyplot as plt
 from torchvision import transforms
 from Preprocessing_model.CIDNet.HVI_transform import RGB_HVI
 from Preprocessing_model.CIDNet.transformer_utils import *
 from Preprocessing_model.CIDNet.LCA import *
+
+def matplotlib_imshow(img):
+    assert len(img.shape) == 3
+    img = img.detach().numpy()
+    # npimg = img.numpy()
+    return (np.transpose(img, (1, 2, 0))[:, :, ::-1] * 255).astype(np.uint8)
+
 
 class CIDNet(nn.Module):
     def __init__(self,
@@ -143,7 +151,7 @@ def transform(img):
 
 if __name__ == '__main__':
     model = CIDNet()
-    path = '/storage/sjpark/vehicle_data/Pretrained_CIDNet/SICE.pth'
+    path = '/storage/sjpark/vehicle_data/Pretrained_CIDNet/CIDNet/LOL_v1/test_finetuning.pth'
     ckpt = torch.load(path, map_location='cpu')
     try:
         model.load_state_dict(ckpt, strict=True)
@@ -157,7 +165,7 @@ if __name__ == '__main__':
     for idx, data in enumerate(train_dir):
         img = os.path.join(image_path, train_dir[10])
         img = Image.open(img)
-        img = resize_train(img, (256, 256))
+        img = img_ = resize_train(img, (256, 256))
         img = np.array(img, dtype=np.uint8)
         image = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
@@ -167,6 +175,9 @@ if __name__ == '__main__':
 
         img = transform(img).unsqueeze(0)
         out = model(img)
+        plt.imshow(image)
+
+        x = matplotlib_imshow(image)
 
         out_np = out.squeeze(0).permute(1, 2, 0).detach().cpu().numpy()  # [H, W, 3]
         out_np = (out_np * 255.0).clip(0, 255).astype(np.uint8)

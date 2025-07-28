@@ -14,7 +14,8 @@ from copy import deepcopy
 from Core.functions import *
 from torch.utils.tensorboard import SummaryWriter
 from PIL import Image
-from model.RepVGG_ResNet_deeplabv3plus import *
+# from model.RepVGG_ResNet_deeplabv3plus import *
+from model.RepVGG_DA_ECA_ResNet_deeplabv3plus import *
 from backbone.ResNet import build_backbone
 from distutils.version import LooseVersion
 from torchvision.utils import make_grid
@@ -37,8 +38,6 @@ class Trainer():
         self.cfg = cfg
         self.device = self.setup_device()
         self.model = self.setup_network()
-        # self.preprocessing_model = self.get_gamma_correction()
-        self.preprocessing_model = self.get_cldnet()
         self.test_loader = self.get_test_dataloader()
         self.global_step = 0
         self.save_path = self.cfg['model']['save_dir']
@@ -130,7 +129,6 @@ class Trainer():
 
     def test(self):
         self.model.eval()
-        self.preprocessing_model.eval()
         print("start testing_model_{}".format(self.cfg['args']['network_name']))
         cls_count = []
         total_avr_acc = {}
@@ -159,7 +157,6 @@ class Trainer():
             end_event = torch.cuda.Event(enable_timing=True)
             with torch.no_grad():
                 start_event.record()
-                data = self.preprocessing_model(data)
                 logits = self.model(data)
                 end_event.record()
             torch.cuda.synchronize()
@@ -287,11 +284,11 @@ class Trainer():
         #
         for key, val in total_avr_precision.items():
             for key2, val2 in val.items():
-                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/Night_dataloder/cidnet/train/256/precision/{}/{}_{}.txt".format(key, key, key2)
+                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/new_dataloader/RepVGG_DeepLabV3+/RepBlock_DeepLabV3+_ResNet50/512/precision/{}/{}_{}.txt".format(key, key, key2)
                 np.savetxt(path, total_avr_precision[key][key2], fmt= '%f')
 
         for key, val in total_avr_recall.items():
             for key2, val2 in val.items():
-                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/Night_dataloder/cidnet/train/256/recall/{}/{}_{}.txt".format(key, key, key2)
+                path = "/storage/sjpark/vehicle_data/precision_recall_per_class_p_threshold/new_dataloader/RepVGG_DeepLabV3+/RepBlock_DeepLabV3+_ResNet50/512/recall/{}/{}_{}.txt".format(key, key, key2)
                 np.savetxt(path, total_avr_recall[key][key2], fmt='%f')
 

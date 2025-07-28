@@ -218,13 +218,29 @@ class RepVGG_ResNet(nn.Module):
         #
         self.in_planes = 64
         self.layer1 = self._make_layer(self.block, 64, self.num_block[0], stride=self.strides[0], dilation=self.dilations[0], BatchNorm=self.BatchNorm)
-
+        #
+        self.t1 = int (abs((log(256, 2) + 1) / 2))
+        self.k1 = self.t1 if self.t1 % 2 else self.t1 + 1
+        self.da_eca_module1 = DA_ECA(self.k1)
+        #
         self.layer2 = self._make_layer(self.block, 128, self.num_block[1], stride=self.strides[1], dilation=self.dilations[1], BatchNorm=self.BatchNorm)
-
+        #
+        self.t2 = int (abs((log(512, 2) + 1) / 2))
+        self.k2 = self.t2 if self.t2 % 2 else self.t2 + 1
+        self.da_eca_module2 = DA_ECA(self.k2)
+        #
         self.layer3 = self._make_layer(self.block, 256, self.num_block[2], stride=self.strides[2], dilation=self.dilations[2], BatchNorm=self.BatchNorm)
-
+        # DA_ECA
+        self.t3 = int (abs((log(1024, 2) + 1) / 2))
+        self.k3 = self.t3 if self.t3 % 2 else self.t3 + 1
+        self.da_eca_module3 = DA_ECA(self.k3)
+        #
         self.layer4 = self._make_MG_unit(self.block, 512, blocks, stride=self.strides[3], dilation=self.dilations[3], BatchNorm=self.BatchNorm)
-
+        # DA_ECA
+        # self.t4 = int (abs((log(2048, 2) + 1) / 2))
+        # self.k4 = self.t4 if self.t4 % 2 else self.t4 + 1
+        # self.da_eca_module4 = DA_ECA(self.k4)
+        #
         self._load_pretrained_model()
     def _make_stage(self, planes, num_blocks, kernel_size, stride, padding):
         strides = [stride] + [1] *(num_blocks - 1)
@@ -291,12 +307,14 @@ class RepVGG_ResNet(nn.Module):
 
         out = self.layer1(out)
         low_level_feat = out
+        out = self.da_eca_module1(out)
         out = self.layer2(out)
+        out = self.da_eca_module2(out)
         out = self.layer3(out)
+        out = self.da_eca_module3(out)
         out = self.layer4(out)
 
         return out, low_level_feat
-
 
 
 
